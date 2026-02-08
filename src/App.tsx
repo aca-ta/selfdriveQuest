@@ -14,6 +14,7 @@ import { TrainActions } from './components/TrainActions';
 import { AgentInfoPanel } from './components/AgentInfoPanel';
 import { CourseStoragePanel } from './components/CourseStoragePanel';
 import { PlaygroundCoursePanel } from './components/PlaygroundCoursePanel';
+import { HowToPlayModal } from './components/HowToPlayModal';
 import { loadAllCourseSets, saveCourseSetsToStorage } from './hooks/useMaze';
 import type { HyperParams, MazeConfig, SavedCourseSet } from './types';
 import './App.css';
@@ -30,6 +31,7 @@ function App() {
   const [playRunning, setPlayRunning] = useState(false);
   const [playgroundMazeAdded, setPlaygroundMazeAdded] = useState(false);
   const [savedCourseSets, setSavedCourseSets] = useState<SavedCourseSet[]>([]);
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   // 初回マウント時にスロット一覧・保存コースを取得
   useEffect(() => {
@@ -318,11 +320,13 @@ function App() {
             <h1 className="title">SelfdriveQuest</h1>
             <p className="subtitle">道路をたくさん走らせて、賢い自動運転を作ろう！</p>
           </div>
-          {isEditing && (
-            <div className="header-steps">
-              ① コースを作る → ②「学習する」→ ③「実力を試す」
-            </div>
-          )}
+          <button
+            className="btn btn-ghost btn-sm"
+            onClick={() => setShowHowToPlay(true)}
+            style={{ fontSize: 13, marginLeft: 'auto' }}
+          >
+            ❓ 遊び方
+          </button>
         </div>
       </div>
 
@@ -393,7 +397,7 @@ function App() {
             )}
 
             <div className="grid-column">
-              {isEditing && (
+              {(isEditing || (isPlayground && !playRunning && !playHasResult)) && (
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                   {([[5, '初級'], [10, '中級'], [15, '上級']] as const).map(([s, label]) => (
                     <button
@@ -409,7 +413,7 @@ function App() {
                   <button className="btn btn-accent btn-sm" onClick={maze.regenerateActiveMaze}>
                     コースを変える
                   </button>
-                  <button className="btn btn-ghost btn-sm" onClick={maze.clearRoads}>
+                  <button className="btn btn-ghost btn-sm" onClick={isPlayground ? handlePlayClearRoads : maze.clearRoads}>
                     道路リセット
                   </button>
                 </div>
@@ -653,6 +657,10 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {showHowToPlay && (
+        <HowToPlayModal onClose={() => setShowHowToPlay(false)} />
       )}
     </div>
   );

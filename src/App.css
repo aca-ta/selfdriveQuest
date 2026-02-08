@@ -379,6 +379,31 @@ input[type="range"]::-moz-range-thumb {
   margin-left: auto;
 }
 
+/* ─── How To Play ─── */
+.how-to-play-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--color-neutral-light);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+}
+
+.how-to-play-number {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: white;
+  font-weight: 800;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 /* ─── Animations ─── */
 @keyframes fadeIn {
   from { opacity: 0; transform: scale(0.94); }
