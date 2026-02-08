@@ -206,11 +206,18 @@ export function useTraining() {
         break;
       }
       case 'model_deleted': {
-        setSavedSlots(prev => prev.filter(s => s.slot !== msg.slot));
-        if (activeSlotRef.current === msg.slot) {
-          setActiveSlot(null);
-          setModelName(null);
-        }
+        setSavedSlots(prev => {
+          const remaining = prev.filter(s => s.slot !== msg.slot);
+          if (remaining.length === 0) {
+            setActiveSlot(0);
+            setModelName('モデル 1');
+            setModelReady(false);
+          } else if (activeSlotRef.current === msg.slot) {
+            setActiveSlot(null);
+            setModelName(null);
+          }
+          return remaining;
+        });
         break;
       }
       case 'model_list':
