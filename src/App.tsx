@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useMaze } from './hooks/useMaze';
 import { useTraining } from './hooks/useTraining';
 import { GridEditor } from './components/GridEditor';
@@ -9,6 +9,7 @@ import { TestView } from './components/TestView';
 import { ScoreDisplay } from './components/ScoreDisplay';
 import { AgentLog } from './components/AgentLog';
 import { HyperParamsPanel, DEFAULT_HYPER_PARAMS } from './components/HyperParamsPanel';
+import { ModelSlotPanel } from './components/ModelSlotPanel';
 import type { HyperParams } from './types';
 import './App.css';
 
@@ -23,6 +24,60 @@ function App() {
   const [showResultPopup, setShowResultPopup] = useState(true);
   const [playRunning, setPlayRunning] = useState(false);
   const [playgroundMazeAdded, setPlaygroundMazeAdded] = useState(false);
+
+  // 初回マウント時にスロット一覧を取得
+  useEffect(() => {
+    training.refreshSlots();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // スロット一覧取得後、デフォルトスロットに保存済みモデルがあれば自動読み込み
+  const initialLoadDone = useRef(false);
+  useEffect(() => {
+    if (!initialLoadDone.current && training.savedSlots.length > 0 && training.activeSlot != null) {
+      if (training.savedSlots.some(s => s.slot === training.activeSlot)) {
+        training.loadModel(training.activeSlot);
+      }
+      initialLoadDone.current = true;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [training.savedSlots]);
+
+  // 学習完了・テスト完了時にスロットが選択されていたら自動保存
+  const prevPhaseRef = useRef(training.phase);
+  useEffect(() => {
+    const prev = prevPhaseRef.current;
+    prevPhaseRef.current = training.phase;
+    if (training.activeSlot == null) return;
+
+    if (prev === 'train' && training.phase === 'trained') {
+      const configs = maze.getMazeConfigs();
+      const name = training.modelName ?? '';
+      training.saveModel(training.activeSlot, {
+        name: name || undefined,
+        mazes: configs.length > 0 ? configs : undefined,
+        hyperParams,
+        episodes: training.episodes.length > 0 ? training.episodes : undefined,
+      });
+    }
+
+    if (prev === 'test' && training.phase === 'result') {
+      const configs = maze.getMazeConfigs();
+      const name = training.modelName ?? '';
+      const testSummary = training.testResults.length > 0
+        ? { success: training.testResults.filter(r => r.reached_goal).length, total: training.testResults.length }
+        : undefined;
+      training.saveModel(training.activeSlot, {
+        name: name || undefined,
+        mazes: configs.length > 0 ? configs : undefined,
+        hyperParams,
+        episodes: training.episodes.length > 0 ? training.episodes : undefined,
+        score: training.score,
+        testSummary,
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [training.phase]);
 
   // 選択中のテスト結果
   const selectedTest = useMemo(() => {
@@ -127,7 +182,7 @@ function App() {
     }
     setSelectedTestIdx(null);
     setShowResultPopup(true);
-    training.startTest();
+    training.startTest(maze.gridSize.rows, maze.gridSize.cols);
   }, [training, playgroundMazeAdded, maze]);
 
   const handleSelectTest = useCallback((idx: number) => {
@@ -157,6 +212,37 @@ function App() {
     training.startPlayground(activeConfig);
   }, [maze, training]);
 
+  const canSaveModel = training.phase === 'trained' || training.phase === 'result' || training.phase === 'play'
+    || (training.phase === 'edit' && (training.episodes.length > 0 || training.activeSlot != null));
+
+  const handleSaveModel = useCallback((slot: number, name: string) => {
+    const configs = maze.getMazeConfigs();
+    const testSummary = training.testResults.length > 0
+      ? { success: training.testResults.filter(r => r.reached_goal).length, total: training.testResults.length }
+      : undefined;
+    training.saveModel(slot, {
+      name: name || undefined,
+      mazes: configs.length > 0 ? configs : undefined,
+      hyperParams,
+      episodes: training.episodes.length > 0 ? training.episodes : undefined,
+      score: training.score,
+      testSummary,
+    });
+  }, [training, maze, hyperParams]);
+
+  const handleSelectSlot = useCallback((slot: number) => {
+    training.setActiveSlot(slot);
+    training.setModelReady(false);
+  }, [training]);
+
+  const handleLoadModel = useCallback((slot: number) => {
+    training.loadModel(slot);
+  }, [training]);
+
+  const handleDeleteModel = useCallback((slot: number) => {
+    training.deleteModel(slot);
+  }, [training]);
+
   const handleAddFailedCourses = useCallback(() => {
     const failed = training.testResults.filter(r => !r.reached_goal);
     for (const r of failed) {
@@ -169,24 +255,25 @@ function App() {
   return (
     <div className="app">
       <div className="header">
-        <h1 className="title">SelfdriveQuest</h1>
-        <p className="subtitle">道路をたくさん走らせて、賢い自動運転を作ろう！</p>
-      </div>
-
-      {isEditing && training.episodes.length === 0 && (
-        <div className="card" style={{ padding: '12px 16px', fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.9 }}>
-          <div style={{ fontWeight: 700, color: 'var(--color-text)', marginBottom: 4 }}>遊び方</div>
-          <div>① コースを作る — クリックで道路を置いて、車が走るコースを設計しよう</div>
-          <div>②「学習する」— 学習パラメータを調整して、AIにコースを走らせよう</div>
-          <div>③「実力を試す」— 学習したAIが初めてのコースに挑戦！</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <h1 className="title">SelfdriveQuest</h1>
+            <p className="subtitle">道路をたくさん走らせて、賢い自動運転を作ろう！</p>
+          </div>
+          {isEditing && (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.8, marginLeft: 'auto' }}>
+              ① コースを作る → ②「学習する」→ ③「実力を試す」
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="main-area">
         <ControlPanel
           phase={training.phase}
           currentEpisode={training.currentEpisode}
           error={training.error}
+          modelName={training.modelName}
           onStop={training.stopTraining}
           onStopTest={training.stopTest}
           onReset={training.reset}
@@ -200,6 +287,18 @@ function App() {
           onEnterPlayground={handleEnterPlayground}
           playRunning={playRunning}
           failedCount={training.testResults.filter(r => !r.reached_goal).length}
+        />
+
+        <ModelSlotPanel
+          slots={training.savedSlots}
+          canSave={canSaveModel}
+          activeSlot={training.activeSlot}
+          modelName={training.modelName}
+          onModelNameChange={isEditing ? training.setModelName : undefined}
+          onSave={handleSaveModel}
+          onLoad={handleLoadModel}
+          onSelect={isEditing ? handleSelectSlot : undefined}
+          onDelete={handleDeleteModel}
         />
 
         <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
@@ -267,15 +366,23 @@ function App() {
           </div>
 
           {isEditing && (
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', flex: 1, minWidth: 200, padding: 24 }}>
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 200, padding: 24 }}>
               <HyperParamsPanel
                 value={hyperParams}
                 onChange={setHyperParams}
                 disabled={false}
               />
-              <button className="btn btn-success btn-lg" style={{ width: '100%', marginTop: 16 }} onClick={handleTrain} disabled={maze.mazes.length === 0}>
+              <button className="btn btn-success btn-lg" style={{ width: '100%', marginTop: 16 }} onClick={handleTrain} disabled={maze.mazes.length === 0 || (training.activeSlot != null && !training.modelName?.trim())}>
                 学習する
               </button>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button className="btn btn-accent" style={{ flex: 1, fontSize: 12 }} onClick={handleStartTest} disabled={!training.modelReady}>
+                  実力を試す
+                </button>
+                <button className="btn btn-info" style={{ flex: 1, fontSize: 12 }} onClick={handleEnterPlayground} disabled={!training.modelReady}>
+                  自分のコースで走らせる
+                </button>
+              </div>
             </div>
           )}
 
@@ -350,6 +457,19 @@ function App() {
                 activeIndex={selectedTestIdx ?? undefined}
               />
             </div>
+            <div style={{ margin: '16px auto', maxWidth: 340 }}>
+              <ModelSlotPanel
+                slots={training.savedSlots}
+                canSave={canSaveModel}
+                activeSlot={training.activeSlot}
+                modelName={training.modelName}
+                onModelNameChange={training.setModelName}
+                onSave={handleSaveModel}
+                onLoad={handleLoadModel}
+                onSelect={handleSelectSlot}
+                onDelete={handleDeleteModel}
+              />
+            </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 24, flexWrap: 'wrap' }}>
               <button className="btn btn-accent" onClick={() => setShowResultPopup(false)}>
                 結果をくわしく見る
@@ -359,20 +479,16 @@ function App() {
                   失敗コースを追加して再学習（{training.testResults.filter(r => !r.reached_goal).length}件）
                 </button>
               )}
-              <button className="btn btn-success" onClick={handleEnterPlayground}>
+              <button className="btn btn-info" onClick={handleEnterPlayground}>
                 自分のコースで走らせる
               </button>
-              <button className="btn btn-info" onClick={handleBackToEdit}>
-                もっと鍛える
-              </button>
-              <button className="btn btn-ghost" onClick={training.reset}>
-                リセットして最初から
+              <button className="btn btn-secondary" onClick={handleBackToEdit}>
+                モデルを学習する
               </button>
             </div>
             <div style={{ fontSize: 11, color: 'var(--color-neutral)', textAlign: 'center', marginTop: 12, lineHeight: 1.7 }}>
               <b>自分のコースで走らせる</b>: 好きなコースを作って、学習した車に挑戦させよう<br />
-              <b>失敗コースを追加</b>: 苦手なコースだけ追加して弱点を補強できる<br />
-              <b>リセット</b>: 行ったり来たりが直らないときは、最初からやり直した方がうまくいくことも
+              <b>失敗コースを追加</b>: 苦手なコースだけ追加して弱点を補強できる
             </div>
           </div>
         </div>
@@ -404,27 +520,36 @@ function App() {
             <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: 'var(--color-text)' }}>
               学習完了！
             </div>
-            <div style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginBottom: 24, lineHeight: 1.8 }}>
+            <div style={{ fontSize: 14, color: 'var(--color-text-secondary)', marginBottom: 16, lineHeight: 1.8 }}>
               テスト走行で実力を試す？<br />
-              それともコースを追加してもっと鍛える？
+              それともコースを編集してもっと鍛える？
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <ModelSlotPanel
+                slots={training.savedSlots}
+                canSave={canSaveModel}
+                activeSlot={training.activeSlot}
+                modelName={training.modelName}
+                onModelNameChange={training.setModelName}
+                onSave={handleSaveModel}
+                onLoad={handleLoadModel}
+                onSelect={handleSelectSlot}
+                onDelete={handleDeleteModel}
+              />
             </div>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn btn-accent btn-lg" onClick={handleStartTest}>
                 実力を試す
               </button>
-              <button className="btn btn-success btn-lg" onClick={handleEnterPlayground}>
+              <button className="btn btn-info btn-lg" onClick={handleEnterPlayground}>
                 自分のコースで走らせる
               </button>
-              <button className="btn btn-info btn-lg" onClick={handleBackToEdit}>
-                もっと鍛える
-              </button>
-              <button className="btn btn-ghost" onClick={training.reset}>
-                リセットして最初から
+              <button className="btn btn-secondary btn-lg" onClick={handleBackToEdit}>
+                モデルを学習する
               </button>
             </div>
             <div style={{ fontSize: 11, color: 'var(--color-neutral)', textAlign: 'center', marginTop: 12, lineHeight: 1.7 }}>
-              <b>もっと鍛える</b>: 今の実力を引き継いで、コースを追加・編集して追加トレーニング<br />
-              <b>リセット</b>: サイズやパラメータを大きく変えるときは最初からがおすすめ
+              <b>モデルを学習する</b>: コースやパラメータを変えて追加トレーニング。別のスロットで新規モデルも作れます
             </div>
           </div>
         </div>
