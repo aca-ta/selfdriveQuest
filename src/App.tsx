@@ -371,6 +371,7 @@ function App() {
                   onSelect={maze.setActiveMazeIdx}
                   onAdd={maze.addMaze}
                   onRemove={maze.removeMaze}
+                  onRemoveAll={maze.removeAllMazes}
                 />
                 <CourseStoragePanel
                   currentMazeCount={maze.mazes.length}
@@ -446,6 +447,7 @@ function App() {
                 value={hyperParams}
                 onChange={setHyperParams}
                 disabled={false}
+                hasExistingModel={training.modelReady}
               />
               <TrainActions
                 modelReady={training.modelReady}
@@ -520,6 +522,7 @@ function App() {
                 <div>先のことを考える力: {hyperParams.gamma.toFixed(3)}</div>
                 <div>チャレンジ精神: {(hyperParams.epsilonEnd * 100).toFixed(0)}%</div>
                 <div>新しい道を探す力: {hyperParams.revisitPenalty.toFixed(2)}</div>
+                <div>隠れ層サイズ: {hyperParams.hiddenSize}</div>
               </div>
             </div>
           </div>
@@ -528,7 +531,18 @@ function App() {
 
       {training.phase === 'result' && showResultPopup && (
         <div className="modal-overlay">
-          <div className="modal-content">
+          <div className="modal-content" style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowResultPopup(false)}
+              style={{
+                position: 'absolute', top: 12, right: 12,
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 20, color: 'var(--color-text-secondary)', lineHeight: 1,
+              }}
+              aria-label="閉じる"
+            >
+              &times;
+            </button>
             <ScoreDisplay score={training.score} />
             <div style={{ marginTop: 16 }}>
               <TestView
@@ -590,7 +604,18 @@ function App() {
 
       {training.phase === 'trained' && (
         <div className="modal-overlay">
-          <div className="modal-content modal-content-sm">
+          <div className="modal-content modal-content-sm" style={{ position: 'relative' }}>
+            <button
+              onClick={handleBackToEdit}
+              style={{
+                position: 'absolute', top: 12, right: 12,
+                background: 'none', border: 'none', cursor: 'pointer',
+                fontSize: 20, color: 'var(--color-text-secondary)', lineHeight: 1,
+              }}
+              aria-label="閉じる"
+            >
+              &times;
+            </button>
             <div style={{ fontSize: 40, marginBottom: 8 }}>🎓</div>
             <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: 'var(--color-text)' }}>
               学習完了！

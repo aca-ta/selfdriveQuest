@@ -1,11 +1,11 @@
 import * as tf from '@tensorflow/tfjs';
 import { MazeEnv } from './env';
 
-function createQNetwork(obsDim: number, nActions: number): tf.Sequential {
+function createQNetwork(obsDim: number, nActions: number, hiddenSize: number = 128): tf.Sequential {
   return tf.sequential({
     layers: [
-      tf.layers.dense({ units: 128, activation: 'relu', inputShape: [obsDim] }),
-      tf.layers.dense({ units: 128, activation: 'relu' }),
+      tf.layers.dense({ units: hiddenSize, activation: 'relu', inputShape: [obsDim] }),
+      tf.layers.dense({ units: hiddenSize, activation: 'relu' }),
       tf.layers.dense({ units: nActions }),
     ],
   });
@@ -90,6 +90,7 @@ export class DQNAgent {
     bufferSize?: number;
     batchSize?: number;
     tau?: number;
+    hiddenSize?: number;
   } = {}) {
     this.obsDim = params.obsDim ?? 77;
     this.nActions = params.nActions ?? 4;
@@ -101,13 +102,14 @@ export class DQNAgent {
     this.epsilonDecayEpisodes = params.epsilonDecayEpisodes ?? 200;
     this.batchSize = params.batchSize ?? 64;
     this.tau = params.tau ?? 0.01;
+    const hiddenSize = params.hiddenSize ?? 128;
 
-    this.policyNet = createQNetwork(this.obsDim, this.nActions);
-    this.targetNet = createQNetwork(this.obsDim, this.nActions);
+    this.policyNet = createQNetwork(this.obsDim, this.nActions, hiddenSize);
+    this.targetNet = createQNetwork(this.obsDim, this.nActions, hiddenSize);
     this.targetNet.setWeights(this.policyNet.getWeights().map(w => w.clone()));
 
     this.optimizer = tf.train.adam(lr);
-    this.replayBuffer = new ReplayBuffer(params.bufferSize ?? 10_000);
+    this.replayBuffer = new ReplayBuffer(params.bufferSize ?? 50_000);
   }
 
   chooseAction(obs: Float32Array): number {
@@ -176,11 +178,15 @@ export class DQNAgent {
     const rewardsTensor = tf.tensor1d(batch.rewards);
     const donesTensor = tf.tensor1d(batch.dones);
 
+    // Double DQN: policy net で行動選択、target net で評価
     const targetQ = tf.tidy(() => {
-      const nextQ = this.targetNet.predict(nextObsTensor) as tf.Tensor;
-      const maxNextQ = nextQ.max(1);
+      const nextQPolicy = this.policyNet.predict(nextObsTensor) as tf.Tensor;
+      const bestActions = nextQPolicy.argMax(1);
+      const nextQTarget = this.targetNet.predict(nextObsTensor) as tf.Tensor;
+      const oneHotBest = tf.oneHot(bestActions, this.nActions);
+      const selectedQ = nextQTarget.mul(oneHotBest).sum(1);
       return rewardsTensor.add(
-        maxNextQ.mul(tf.scalar(1.0).sub(donesTensor)).mul(tf.scalar(this.gamma))
+        selectedQ.mul(tf.scalar(1.0).sub(donesTensor)).mul(tf.scalar(this.gamma))
       );
     });
 
@@ -217,6 +223,13 @@ export class DQNAgent {
     this.targetNet.setWeights(updated);
     // setWeights は内部でコピーするので、ここで dispose
     updated.forEach(t => t.dispose());
+  }
+
+  /** 追加学習用: epsilonを中間値から再スタートさせる */
+  resetExploration(startEpsilon: number = 0.5): void {
+    this.episodeCount = 0;
+    this.epsilonStart = startEpsilon;
+    this.epsilon = startEpsilon;
   }
 
   decayEpsilon(): void {

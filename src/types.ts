@@ -123,6 +123,7 @@ export interface HyperParams {
   epsilonEnd: number;
   epsilonDecayEpisodes: number;
   revisitPenalty: number;
+  hiddenSize: number;
 }
 
 export interface ScoreData {

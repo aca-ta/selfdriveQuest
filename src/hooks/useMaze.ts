@@ -141,6 +141,13 @@ export function useMaze(initialRows = 10, initialCols = 10) {
     setActiveMazeIdx(prev => Math.min(prev, mazes.length - 2));
   }, [mazes.length]);
 
+  const removeAllMazes = useCallback(() => {
+    const goal: [number, number] = [gridSize.rows - 1, gridSize.cols - 1];
+    setMazes([createEmptyMaze([0, 0], goal)]);
+    setActiveMazeIdx(0);
+    loadRandomMaze(gridSize.rows, gridSize.cols, 0);
+  }, [gridSize, loadRandomMaze]);
+
   const setStart = useCallback((row: number, col: number) => {
     setMazes(prev => {
       const updated = [...prev];
@@ -247,6 +254,7 @@ export function useMaze(initialRows = 10, initialCols = 10) {
     addEmptyMaze,
     removeMaze,
     removeLastMaze,
+    removeAllMazes,
     clearRoads,
     changeGridSize,
     getMazeConfigs,

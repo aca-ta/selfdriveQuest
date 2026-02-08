@@ -1,10 +1,15 @@
 import { useMemo, useState } from 'react';
 import type { HyperParams } from '../types';
 
+/** 追加学習時に変更しても反映されないキー（エージェント生成時に固定される） */
+const AGENT_CREATION_KEYS: Set<keyof HyperParams> = new Set(['lr', 'gamma', 'epsilonEnd', 'hiddenSize']);
+
 interface HyperParamsPanelProps {
   value: HyperParams;
   onChange: (hp: HyperParams) => void;
   disabled: boolean;
+  /** 既存モデルがある場合 true → エージェント固定パラメータをロック */
+  hasExistingModel?: boolean;
 }
 
 interface Preset {
@@ -17,17 +22,17 @@ const PRESETS: Preset[] = [
   {
     name: '少し学習',
     icon: '🚗',
-    params: { maxEpisodes: 100, lr: 0.0005, gamma: 0.9, epsilonEnd: 0.15, epsilonDecayEpisodes: 80, revisitPenalty: 0.05 },
+    params: { maxEpisodes: 100, lr: 0.001, gamma: 0.9, epsilonEnd: 0.15, epsilonDecayEpisodes: 80, revisitPenalty: 0.05, hiddenSize: 64 },
   },
   {
     name: 'バランス型',
     icon: '⚖️',
-    params: { maxEpisodes: 300, lr: 0.001, gamma: 0.95, epsilonEnd: 0.1, epsilonDecayEpisodes: 250, revisitPenalty: 0.05 },
+    params: { maxEpisodes: 300, lr: 0.001, gamma: 0.95, epsilonEnd: 0.1, epsilonDecayEpisodes: 250, revisitPenalty: 0.05, hiddenSize: 128 },
   },
   {
     name: 'じっくり学習',
     icon: '🏎️',
-    params: { maxEpisodes: 500, lr: 0.003, gamma: 0.99, epsilonEnd: 0.05, epsilonDecayEpisodes: 400, revisitPenalty: 0.05 },
+    params: { maxEpisodes: 500, lr: 0.003, gamma: 0.99, epsilonEnd: 0.05, epsilonDecayEpisodes: 400, revisitPenalty: 0.05, hiddenSize: 256 },
   },
 ];
 
@@ -48,7 +53,7 @@ const SLIDERS: SliderDef[] = [
   { label: '練習回数', key: 'maxEpisodes', min: 50, max: 500, step: 50, format: v => `${v}回`,
     infoKids: '何回コースを走って練習するか。多いほど上手になるけど時間がかかるよ',
     infoTech: 'max_episodes: 学習エピソード数。早期停止（直近30ep全成功 & stdev<2）で途中終了あり' },
-  { label: '学習のコツ', key: 'lr', min: 0.0001, max: 0.01, step: 0.0001, format: v => v.toFixed(4),
+  { label: '学習のコツ', key: 'lr', min: 0.001, max: 0.01, step: 0.001, format: v => v.toFixed(3),
     infoKids: '1回の経験からどれだけ学ぶか。大きいと速く覚えるけど不安定、小さいとじっくり安定して学ぶよ',
     infoTech: 'learning_rate (Adam): 勾配降下の更新幅。大きすぎると発散、小さすぎると収束が遅い' },
   { label: '先のことを考える力', key: 'gamma', min: 0.9, max: 0.999, step: 0.001, format: v => v.toFixed(3),
@@ -60,6 +65,9 @@ const SLIDERS: SliderDef[] = [
   { label: '新しい道を探す力', key: 'revisitPenalty', min: 0.01, max: 0.3, step: 0.01, format: v => v.toFixed(2),
     infoKids: '一度通った道をもう一度通るのをどれくらいいやがるか。大きいほど新しい道を探すけど、遠回りしやすくなるよ',
     infoTech: 'revisit_penalty: 再訪問セルへの負の報酬。高いと探索的だがQ値が不安定になりうる。壁衝突(-0.6)>逆走(-0.2)>この値' },
+  { label: '脳の大きさ', key: 'hiddenSize', min: 64, max: 512, step: 64, format: v => `${v}`,
+    infoKids: '車の脳の大きさ。大きいほど複雑な判断ができるけど、学習に時間がかかるよ',
+    infoTech: 'hidden_layer_size: 各隠れ層のユニット数 (Dense h→h→4)。表現力と計算量のトレードオフ' },
 ];
 
 function matchesPreset(hp: HyperParams, preset: HyperParams): boolean {
@@ -69,7 +77,8 @@ function matchesPreset(hp: HyperParams, preset: HyperParams): boolean {
     hp.gamma === preset.gamma &&
     hp.epsilonEnd === preset.epsilonEnd &&
     hp.epsilonDecayEpisodes === preset.epsilonDecayEpisodes &&
-    hp.revisitPenalty === preset.revisitPenalty
+    hp.revisitPenalty === preset.revisitPenalty &&
+    hp.hiddenSize === preset.hiddenSize
   );
 }
 
@@ -78,21 +87,25 @@ function withDecay(hp: HyperParams): HyperParams {
   return { ...hp, epsilonDecayEpisodes: Math.round(hp.maxEpisodes * 2 / 3) };
 }
 
-function SliderList({ sliders, value, disabled, onChange }: {
+function SliderList({ sliders, value, disabled, lockedKeys, onChange }: {
   sliders: SliderDef[];
   value: HyperParams;
   disabled: boolean;
+  lockedKeys?: Set<keyof HyperParams>;
   onChange: (hp: HyperParams) => void;
 }) {
   const [openInfo, setOpenInfo] = useState<string | null>(null);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {sliders.map(s => (
-        <div key={s.key}>
+      {sliders.map(s => {
+        const isLocked = lockedKeys?.has(s.key) ?? false;
+        const isDisabled = disabled || isLocked;
+        return (
+        <div key={s.key} style={{ opacity: isLocked ? 0.5 : 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-              {s.label}
+              {s.label}{isLocked && ' 🔒'}
             </span>
             <span
               onClick={() => setOpenInfo(openInfo === s.key ? null : s.key)}
@@ -124,13 +137,18 @@ function SliderList({ sliders, value, disabled, onChange }: {
             max={s.max}
             step={s.step}
             value={value[s.key]}
-            disabled={disabled}
+            disabled={isDisabled}
             onChange={e => {
               const updated = { ...value, [s.key]: parseFloat(e.target.value) };
               onChange(s.key === 'maxEpisodes' ? withDecay(updated) : updated);
             }}
             style={{ width: '100%' }}
           />
+          {isLocked && (
+            <div style={{ fontSize: 10, color: 'var(--color-warning)', marginTop: 2 }}>
+              新規学習でのみ変更可能
+            </div>
+          )}
           {openInfo === s.key && (
             <div style={{
               fontSize: 11,
@@ -148,12 +166,13 @@ function SliderList({ sliders, value, disabled, onChange }: {
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-export function HyperParamsPanel({ value, onChange, disabled }: HyperParamsPanelProps) {
+export function HyperParamsPanel({ value, onChange, disabled, hasExistingModel }: HyperParamsPanelProps) {
   const activePreset = useMemo(
     () => PRESETS.findIndex(p => matchesPreset(value, p.params)),
     [value],
@@ -167,7 +186,7 @@ export function HyperParamsPanel({ value, onChange, disabled }: HyperParamsPanel
           <button
             key={p.name}
             onClick={() => onChange(p.params)}
-            disabled={disabled}
+            disabled={disabled || hasExistingModel}
             className={`btn-chip${activePreset === i ? ' active' : ''}`}
             style={{ padding: '3px 10px', fontSize: 12 }}
           >
@@ -180,7 +199,7 @@ export function HyperParamsPanel({ value, onChange, disabled }: HyperParamsPanel
           </span>
         )}
       </div>
-      <SliderList sliders={SLIDERS} value={value} disabled={disabled} onChange={onChange} />
+      <SliderList sliders={SLIDERS} value={value} disabled={disabled} lockedKeys={hasExistingModel ? AGENT_CREATION_KEYS : undefined} onChange={onChange} />
     </div>
   );
 }
