@@ -46,7 +46,7 @@ function wallsToRoads(
   return roads;
 }
 
-export function useMaze(initialRows = 10, initialCols = 10) {
+export function useMaze(initialRows = 5, initialCols = 5) {
   const [gridSize, setGridSize] = useState({ rows: initialRows, cols: initialCols });
   const defaultGoal: [number, number] = [initialRows - 1, initialCols - 1];
   const INITIAL_COURSE_COUNT = 3;

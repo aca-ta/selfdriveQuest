@@ -517,12 +517,12 @@ function App() {
               </div>
               <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--color-text)' }}>学習パラメータ</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, color: 'var(--color-text-secondary)' }}>
-                <div>練習回数: {hyperParams.maxEpisodes}回</div>
-                <div>学習のコツ: {hyperParams.lr.toFixed(4)}</div>
-                <div>先のことを考える力: {hyperParams.gamma.toFixed(3)}</div>
-                <div>チャレンジ精神: {(hyperParams.epsilonEnd * 100).toFixed(0)}%</div>
-                <div>新しい道を探す力: {hyperParams.revisitPenalty.toFixed(2)}</div>
-                <div>隠れ層サイズ: {hyperParams.hiddenSize}</div>
+                <div>練習回数 (エピソード数): {hyperParams.maxEpisodes}回</div>
+                <div>学習のコツ (学習率): {hyperParams.lr.toFixed(3)}</div>
+                <div>先のことを考える力 (割引率): {hyperParams.gamma.toFixed(3)}</div>
+                <div>チャレンジ精神 (ε最終値): {(hyperParams.epsilonEnd * 100).toFixed(0)}%</div>
+                <div>新しい道を探す力 (再訪ペナルティ): {hyperParams.revisitPenalty.toFixed(2)}</div>
+                <div>脳の大きさ (隠れ層サイズ): {hyperParams.hiddenSize}</div>
               </div>
             </div>
           </div>
