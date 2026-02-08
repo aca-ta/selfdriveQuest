@@ -131,6 +131,16 @@ export interface ScoreData {
   total_score: number;
 }
 
+// ─── Course Storage ───
+
+export interface SavedCourseSet {
+  id: string;
+  name: string;
+  savedAt: string;
+  gridSize: { rows: number; cols: number };
+  mazes: MazeConfig[];
+}
+
 // ─── Model Save/Load ───
 
 export interface SaveSlotInfo {

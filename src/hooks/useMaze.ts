@@ -1,6 +1,19 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { MazeData, MazeConfig } from '../types';
+import type { MazeData, MazeConfig, SavedCourseSet } from '../types';
 import { generateRandomMaze } from '../engine/solver';
+
+const COURSE_STORAGE_KEY = 'selfdrive-quest-courses';
+
+export function loadAllCourseSets(): SavedCourseSet[] {
+  try {
+    const raw = localStorage.getItem(COURSE_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+export function saveCourseSetsToStorage(sets: SavedCourseSet[]) {
+  localStorage.setItem(COURSE_STORAGE_KEY, JSON.stringify(sets));
+}
 
 let nextId = 1;
 
@@ -162,6 +175,17 @@ export function useMaze(initialRows = 10, initialCols = 10) {
     }
   }, [loadRandomMaze]);
 
+  const loadMazesFromConfigs = useCallback((configs: MazeConfig[], newGridSize: { rows: number; cols: number }) => {
+    setGridSize(newGridSize);
+    setMazes(configs.map(cfg => ({
+      id: nextId++,
+      roads: wallsToRoads(cfg.walls, cfg.num_rows, cfg.num_cols, cfg.start, cfg.goal),
+      start: cfg.start,
+      goal: cfg.goal,
+    })));
+    setActiveMazeIdx(0);
+  }, []);
+
   // roads → walls 変換: 道路でもstart/goalでもないセルが全て壁
   const getMazeConfigs = useCallback((): MazeConfig[] => {
     const { rows, cols } = gridSize;
@@ -179,6 +203,34 @@ export function useMaze(initialRows = 10, initialCols = 10) {
       return { num_rows: rows, num_cols: cols, walls, start: m.start, goal: m.goal };
     });
   }, [mazes, gridSize]);
+
+  const getActiveMazeConfig = useCallback((): MazeConfig => {
+    const { rows, cols } = gridSize;
+    const m = activeMaze;
+    const walls: [number, number][] = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (r === m.start[0] && c === m.start[1]) continue;
+        if (r === m.goal[0] && c === m.goal[1]) continue;
+        if (!m.roads.has(`${r},${c}`)) {
+          walls.push([r, c]);
+        }
+      }
+    }
+    return { num_rows: rows, num_cols: cols, walls, start: m.start, goal: m.goal };
+  }, [activeMaze, gridSize]);
+
+  const loadSingleMazeConfig = useCallback((cfg: MazeConfig) => {
+    const newGridSize = { rows: cfg.num_rows, cols: cfg.num_cols };
+    setGridSize(newGridSize);
+    setMazes([{
+      id: nextId++,
+      roads: wallsToRoads(cfg.walls, cfg.num_rows, cfg.num_cols, cfg.start, cfg.goal),
+      start: cfg.start,
+      goal: cfg.goal,
+    }]);
+    setActiveMazeIdx(0);
+  }, []);
 
   return {
     gridSize,
@@ -198,5 +250,8 @@ export function useMaze(initialRows = 10, initialCols = 10) {
     clearRoads,
     changeGridSize,
     getMazeConfigs,
+    getActiveMazeConfig,
+    loadMazesFromConfigs,
+    loadSingleMazeConfig,
   };
 }

@@ -85,7 +85,7 @@ export function MazeListPanel({
   onRemove,
 }: MazeListPanelProps) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: 150, flexShrink: 0, maxHeight: 480, overflowY: 'auto', alignItems: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 480, overflowY: 'auto', alignItems: 'center' }}>
       <div style={{ position: 'sticky', top: 0, backgroundColor: 'var(--color-card)', zIndex: 1, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: 6, alignSelf: 'stretch' }}>
         <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-text-secondary)' }}>
           コース ({mazes.length})
