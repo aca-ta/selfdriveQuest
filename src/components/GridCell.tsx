@@ -15,6 +15,7 @@ interface GridCellProps {
   cellType: CellType;
   isAgent: boolean;
   isOnPath: boolean;
+  inFov: boolean;
   showDecorations: boolean;
   roadConn: RoadConnections;
   onMouseDown: () => void;
@@ -74,6 +75,7 @@ export function GridCell({
   cellType,
   isAgent,
   isOnPath,
+  inFov,
   showDecorations,
   roadConn,
   onMouseDown,
@@ -139,6 +141,14 @@ export function GridCell({
         <span style={{ fontSize: '60cqmin', lineHeight: 1 }}>
           {CELL_LABELS[cellType]}
         </span>
+      )}
+      {inFov && !isAgent && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          backgroundColor: 'rgba(255, 255, 255, 0.18)',
+          pointerEvents: 'none',
+        }} />
       )}
       {isAgent && (
         <span

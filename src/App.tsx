@@ -11,6 +11,7 @@ import { AgentLog } from './components/AgentLog';
 import { HyperParamsPanel, DEFAULT_HYPER_PARAMS } from './components/HyperParamsPanel';
 import { ModelSlotPanel } from './components/ModelSlotPanel';
 import { TrainActions } from './components/TrainActions';
+import { AgentInfoPanel } from './components/AgentInfoPanel';
 import type { HyperParams } from './types';
 import './App.css';
 
@@ -59,6 +60,8 @@ function App() {
         mazes: configs.length > 0 ? configs : undefined,
         hyperParams,
         episodes: training.episodes.length > 0 ? training.episodes : undefined,
+        sessionBoundaries: training.sessionBoundaries.length > 0 ? training.sessionBoundaries : undefined,
+        mazeHistory: training.mazeHistory.length > 0 ? training.mazeHistory : undefined,
       });
     }
 
@@ -73,6 +76,8 @@ function App() {
         mazes: configs.length > 0 ? configs : undefined,
         hyperParams,
         episodes: training.episodes.length > 0 ? training.episodes : undefined,
+        sessionBoundaries: training.sessionBoundaries.length > 0 ? training.sessionBoundaries : undefined,
+        mazeHistory: training.mazeHistory.length > 0 ? training.mazeHistory : undefined,
         score: training.score,
         testSummary,
       });
@@ -231,6 +236,8 @@ function App() {
       mazes: configs.length > 0 ? configs : undefined,
       hyperParams,
       episodes: training.episodes.length > 0 ? training.episodes : undefined,
+      sessionBoundaries: training.sessionBoundaries.length > 0 ? training.sessionBoundaries : undefined,
+      mazeHistory: training.mazeHistory.length > 0 ? training.mazeHistory : undefined,
       score: training.score,
       testSummary,
     });
@@ -245,18 +252,13 @@ function App() {
     training.loadModel(slot);
   }, [training]);
 
+  const handleCopyModel = useCallback((fromSlot: number, toSlot: number) => {
+    training.copyModel(fromSlot, toSlot);
+  }, [training]);
+
   const handleDeleteModel = useCallback((slot: number) => {
     training.deleteModel(slot);
   }, [training]);
-
-  const handleAddFailedCourses = useCallback(() => {
-    const failed = training.testResults.filter(r => !r.reached_goal);
-    for (const r of failed) {
-      maze.addMazeFromWalls(r.walls, r.start, r.goal);
-    }
-    setSelectedTestIdx(null);
-    training.backToEdit();
-  }, [training, maze]);
 
   return (
     <div className="app">
@@ -287,12 +289,10 @@ function App() {
           onRegenerate={maze.regenerateActiveMaze}
           onBackToEdit={handleBackToEdit}
           onTest={handleStartTest}
-          onAddFailedCourses={handleAddFailedCourses}
           onShowScore={() => setShowResultPopup(true)}
           onRunPlayground={handleRunPlayground}
           onEnterPlayground={handleEnterPlayground}
           playRunning={playRunning}
-          failedCount={training.testResults.filter(r => !r.reached_goal).length}
         />
 
         <ModelSlotPanel
@@ -304,6 +304,7 @@ function App() {
           onSave={handleSaveModel}
           onLoad={handleLoadModel}
           onSelect={isEditing ? handleSelectSlot : undefined}
+          onCopy={handleCopyModel}
           onDelete={handleDeleteModel}
         />
 
@@ -322,7 +323,7 @@ function App() {
               />
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, width: isEditing ? undefined : 500, maxWidth: 560 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, width: 500, maxWidth: 560 }}>
               {isEditing && (
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                   {([[5, '初級'], [10, '中級'], [15, '上級']] as const).map(([s, label]) => (
@@ -392,6 +393,9 @@ function App() {
                   自分のコースで走らせる
                 </button>
               </div>
+              <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+                <AgentInfoPanel />
+              </div>
             </div>
           )}
 
@@ -410,7 +414,7 @@ function App() {
       </div>
 
       {(training.phase === 'train' || training.phase === 'trained') && (
-        <EpisodeChart episodes={training.episodes} />
+        <EpisodeChart episodes={training.episodes} sessionBoundaries={training.sessionBoundaries} />
       )}
 
       {training.phase === 'test' && (
@@ -432,7 +436,7 @@ function App() {
           />
           <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <EpisodeChart episodes={training.episodes} />
+              <EpisodeChart episodes={training.episodes} sessionBoundaries={training.sessionBoundaries} />
             </div>
             <div className="card" style={{ minWidth: 200, padding: 16, fontSize: 13 }}>
               <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--color-text)' }}>学習コース</div>
@@ -483,11 +487,6 @@ function App() {
               <button className="btn btn-accent" onClick={() => setShowResultPopup(false)}>
                 結果をくわしく見る
               </button>
-              {training.testResults.some(r => !r.reached_goal) && (
-                <button className="btn btn-danger" onClick={handleAddFailedCourses}>
-                  失敗コースを追加して再学習（{training.testResults.filter(r => !r.reached_goal).length}件）
-                </button>
-              )}
               <button className="btn btn-info" onClick={handleEnterPlayground}>
                 自分のコースで走らせる
               </button>
@@ -496,8 +495,7 @@ function App() {
               </button>
             </div>
             <div style={{ fontSize: 11, color: 'var(--color-neutral)', textAlign: 'center', marginTop: 12, lineHeight: 1.7 }}>
-              <b>自分のコースで走らせる</b>: 好きなコースを作って、学習した車に挑戦させよう<br />
-              <b>失敗コースを追加</b>: 苦手なコースだけ追加して弱点を補強できる
+              <b>自分のコースで走らせる</b>: 好きなコースを作って、学習した車に挑戦させよう
             </div>
           </div>
         </div>

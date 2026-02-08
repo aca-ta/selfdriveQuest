@@ -85,9 +85,28 @@ export function MazeListPanel({
   onRemove,
 }: MazeListPanelProps) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 100 }}>
-      <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-text-secondary)' }}>
-        コース ({mazes.length})
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: 150, flexShrink: 0, maxHeight: 480, overflowY: 'auto', alignItems: 'center' }}>
+      <div style={{ position: 'sticky', top: 0, backgroundColor: 'var(--color-card)', zIndex: 1, paddingBottom: 4, display: 'flex', flexDirection: 'column', gap: 6, alignSelf: 'stretch' }}>
+        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--color-text-secondary)' }}>
+          コース ({mazes.length})
+        </div>
+        {!disabled && (
+          <button
+            onClick={onAdd}
+            style={{
+              padding: '6px 8px',
+              border: '2px dashed var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'transparent',
+              cursor: 'pointer',
+              fontSize: 12,
+              color: 'var(--color-text-secondary)',
+              transition: 'border-color 0.15s',
+            }}
+          >
+            + 追加
+          </button>
+        )}
       </div>
       {mazes.map((maze, idx) => (
         <div
@@ -129,23 +148,6 @@ export function MazeListPanel({
           )}
         </div>
       ))}
-      {!disabled && (
-        <button
-          onClick={onAdd}
-          style={{
-            padding: '6px 8px',
-            border: '2px dashed var(--color-border)',
-            borderRadius: 'var(--radius-sm)',
-            backgroundColor: 'transparent',
-            cursor: 'pointer',
-            fontSize: 12,
-            color: 'var(--color-text-secondary)',
-            transition: 'border-color 0.15s',
-          }}
-        >
-          + 追加
-        </button>
-      )}
     </div>
   );
 }

@@ -1,10 +1,12 @@
+import { useMemo } from 'react';
 import type { EpisodeResult } from '../types';
 
 interface EpisodeChartProps {
   episodes: EpisodeResult[];
+  sessionBoundaries?: number[];
 }
 
-export function EpisodeChart({ episodes }: EpisodeChartProps) {
+export function EpisodeChart({ episodes, sessionBoundaries = [] }: EpisodeChartProps) {
   if (episodes.length === 0) return null;
 
   const maxSteps = Math.max(...episodes.map(e => e.steps), 1);
@@ -12,7 +14,16 @@ export function EpisodeChart({ episodes }: EpisodeChartProps) {
   const chartHeight = 120;
 
   // Show last 100 episodes max
-  const visible = episodes.slice(-100);
+  const visibleStart = Math.max(0, episodes.length - 100);
+  const visible = episodes.slice(visibleStart);
+
+  // セッション境界を表示範囲内のインデックスに変換
+  const visibleBoundaries = useMemo(() =>
+    sessionBoundaries
+      .filter(b => b > visibleStart && b < episodes.length)
+      .map(b => b - visibleStart),
+    [sessionBoundaries, visibleStart, episodes.length],
+  );
 
   return (
     <div className="card" style={{ padding: '12px 16px', overflow: 'hidden' }}>
@@ -39,6 +50,23 @@ export function EpisodeChart({ episodes }: EpisodeChartProps) {
             />
           );
         })}
+        {/* セッション境界線 */}
+        {visibleBoundaries.map((bi, i) => {
+          const x = bi * (barWidth + 1);
+          return (
+            <line
+              key={`boundary-${i}`}
+              x1={x}
+              y1={0}
+              x2={x}
+              y2={chartHeight}
+              stroke="var(--color-info)"
+              strokeWidth={2}
+              strokeDasharray="4 3"
+              opacity={0.7}
+            />
+          );
+        })}
         {/* X axis line */}
         <line
           x1={0}
@@ -54,6 +82,12 @@ export function EpisodeChart({ episodes }: EpisodeChartProps) {
         <span style={{ color: 'var(--color-success)' }}>{'\u25a0'} ゴール到達</span>
         {' '}
         <span style={{ color: 'var(--color-danger)' }}>{'\u25a0'} 未到達</span>
+        {sessionBoundaries.length > 0 && (
+          <>
+            {' '}
+            <span style={{ color: 'var(--color-info)' }}>{'┆'} コース変更</span>
+          </>
+        )}
       </div>
     </div>
   );
