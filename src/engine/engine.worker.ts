@@ -8,6 +8,7 @@ import { DQNAgent } from './agent';
 import { MazeEnv } from './env';
 import { runTraining } from './trainer';
 import { runTests, runPlayground } from './tester';
+import { resolveAgent } from './agentManager';
 import type { MazeConfig, HyperParams, WsServerMessage, SaveSlotInfo } from '../types';
 
 // Worker には DOM がないので CPU バックエンドを明示的に使用
@@ -87,6 +88,7 @@ interface StartTrainCommand {
   type: 'start_train';
   mazes: MazeConfig[];
   hp: HyperParams;
+  fresh?: boolean;
 }
 
 interface StartTestCommand {
@@ -136,16 +138,13 @@ self.onmessage = async (e: MessageEvent<WorkerCommand>) => {
 
   switch (cmd.type) {
     case 'start_train': {
-      // エージェント作成（追加学習対応: 既存なら再利用）
-      if (!agent) {
-        agent = new DQNAgent({
-          obsDim: MazeEnv.OBS_DIM,
-          lr: cmd.hp.lr,
-          gamma: cmd.hp.gamma,
-          epsilonEnd: cmd.hp.epsilonEnd,
-          epsilonDecayEpisodes: cmd.hp.epsilonDecayEpisodes,
-        });
-      }
+      agent = resolveAgent(agent, cmd.fresh, () => new DQNAgent({
+        obsDim: MazeEnv.OBS_DIM,
+        lr: cmd.hp.lr,
+        gamma: cmd.hp.gamma,
+        epsilonEnd: cmd.hp.epsilonEnd,
+        epsilonDecayEpisodes: cmd.hp.epsilonDecayEpisodes,
+      }));
 
       abortController = new AbortController();
 
