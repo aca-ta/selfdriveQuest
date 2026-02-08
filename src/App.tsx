@@ -12,7 +12,10 @@ import { HyperParamsPanel, DEFAULT_HYPER_PARAMS } from './components/HyperParams
 import { ModelSlotPanel } from './components/ModelSlotPanel';
 import { TrainActions } from './components/TrainActions';
 import { AgentInfoPanel } from './components/AgentInfoPanel';
-import type { HyperParams } from './types';
+import { CourseStoragePanel } from './components/CourseStoragePanel';
+import { PlaygroundCoursePanel } from './components/PlaygroundCoursePanel';
+import { loadAllCourseSets, saveCourseSetsToStorage } from './hooks/useMaze';
+import type { HyperParams, MazeConfig, SavedCourseSet } from './types';
 import './App.css';
 
 function App() {
@@ -26,10 +29,12 @@ function App() {
   const [showResultPopup, setShowResultPopup] = useState(true);
   const [playRunning, setPlayRunning] = useState(false);
   const [playgroundMazeAdded, setPlaygroundMazeAdded] = useState(false);
+  const [savedCourseSets, setSavedCourseSets] = useState<SavedCourseSet[]>([]);
 
-  // 初回マウント時にスロット一覧を取得
+  // 初回マウント時にスロット一覧・保存コースを取得
   useEffect(() => {
     training.refreshSlots();
+    setSavedCourseSets(loadAllCourseSets());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -260,6 +265,51 @@ function App() {
     training.deleteModel(slot);
   }, [training]);
 
+  const handleSaveCourse = useCallback((name: string) => {
+    const configs = maze.getMazeConfigs();
+    const courseSet: SavedCourseSet = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      savedAt: new Date().toISOString(),
+      gridSize: { ...maze.gridSize },
+      mazes: configs,
+    };
+    const sets = [...loadAllCourseSets(), courseSet];
+    saveCourseSetsToStorage(sets);
+    setSavedCourseSets(sets);
+  }, [maze]);
+
+  const handleLoadCourse = useCallback((courseSet: SavedCourseSet) => {
+    maze.loadMazesFromConfigs(courseSet.mazes, courseSet.gridSize);
+  }, [maze]);
+
+  const handleDeleteCourse = useCallback((id: string) => {
+    const sets = loadAllCourseSets().filter(s => s.id !== id);
+    saveCourseSetsToStorage(sets);
+    setSavedCourseSets(sets);
+  }, []);
+
+  const handlePlaygroundSaveCourse = useCallback((name: string) => {
+    const config = maze.getActiveMazeConfig();
+    const courseSet: SavedCourseSet = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name,
+      savedAt: new Date().toISOString(),
+      gridSize: { ...maze.gridSize },
+      mazes: [config],
+    };
+    const sets = [...loadAllCourseSets(), courseSet];
+    saveCourseSetsToStorage(sets);
+    setSavedCourseSets(sets);
+  }, [maze]);
+
+  const handlePlaygroundLoadCourse = useCallback((config: MazeConfig) => {
+    maze.loadSingleMazeConfig(config);
+    setPlaygroundMazeAdded(false);
+    setPlayRunning(false);
+    training.enterPlayground();
+  }, [maze, training]);
+
   return (
     <div className="app">
       <div className="header">
@@ -311,16 +361,34 @@ function App() {
         <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
           <div className="card" style={{ display: 'flex', gap: 16, padding: 20, alignItems: 'flex-start', flexShrink: 0 }}>
             {isEditing && (
-              <MazeListPanel
-                mazes={maze.mazes}
-                activeMazeIdx={maze.activeMazeIdx}
-                rows={maze.gridSize.rows}
-                cols={maze.gridSize.cols}
-                disabled={!isEditing}
-                onSelect={maze.setActiveMazeIdx}
-                onAdd={maze.addMaze}
-                onRemove={maze.removeMaze}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 150, flexShrink: 0 }}>
+                <MazeListPanel
+                  mazes={maze.mazes}
+                  activeMazeIdx={maze.activeMazeIdx}
+                  rows={maze.gridSize.rows}
+                  cols={maze.gridSize.cols}
+                  disabled={!isEditing}
+                  onSelect={maze.setActiveMazeIdx}
+                  onAdd={maze.addMaze}
+                  onRemove={maze.removeMaze}
+                />
+                <CourseStoragePanel
+                  currentMazeCount={maze.mazes.length}
+                  savedSets={savedCourseSets}
+                  onSave={handleSaveCourse}
+                  onLoad={handleLoadCourse}
+                  onDelete={handleDeleteCourse}
+                />
+              </div>
+            )}
+            {isPlayground && !playRunning && !playHasResult && (
+              <div style={{ width: 150, flexShrink: 0 }}>
+                <PlaygroundCoursePanel
+                  savedSets={savedCourseSets}
+                  onSave={handlePlaygroundSaveCourse}
+                  onLoad={handlePlaygroundLoadCourse}
+                />
+              </div>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, width: 500, maxWidth: 560 }}>
