@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { GridCell } from './GridCell';
 import type { CellType } from '../types';
 
@@ -35,7 +35,8 @@ export function GridEditor({
   onSetStart,
   onSetGoal,
 }: GridEditorProps) {
-  const [dragMode, setDragMode] = useState<DragMode>(null);
+  const dragModeRef = useRef<DragMode>(null);
+  const lastTouchCell = useRef<string | null>(null);
 
   const getCellType = useCallback(
     (row: number, col: number): CellType => {
@@ -71,35 +72,77 @@ export function GridEditor({
   const isGoal = (row: number, col: number) =>
     row === goal[0] && col === goal[1];
 
-  const handleMouseDown = (row: number, col: number) => {
+  const handleCellDown = useCallback((row: number, col: number) => {
+    let mode: DragMode;
     if (isStart(row, col)) {
-      setDragMode('drag-start');
-      return;
+      mode = 'drag-start';
+    } else if (isGoal(row, col)) {
+      mode = 'drag-goal';
+    } else {
+      const isRoad = roads.has(`${row},${col}`);
+      mode = isRoad ? 'erase' : 'road';
+      onToggleRoad(row, col);
     }
-    if (isGoal(row, col)) {
-      setDragMode('drag-goal');
-      return;
-    }
-    // road paint
-    const isRoad = roads.has(`${row},${col}`);
-    setDragMode(isRoad ? 'erase' : 'road');
-    onToggleRoad(row, col);
-  };
+    dragModeRef.current = mode;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start, goal, roads, onToggleRoad]);
 
-  const handleMouseEnter = (row: number, col: number) => {
-    if (!dragMode) return;
-    if (dragMode === 'drag-start') {
+  const handleCellMove = useCallback((row: number, col: number) => {
+    const mode = dragModeRef.current;
+    if (!mode) return;
+    if (mode === 'drag-start') {
       if (!isGoal(row, col)) onSetStart?.(row, col);
       return;
     }
-    if (dragMode === 'drag-goal') {
+    if (mode === 'drag-goal') {
       if (!isStart(row, col)) onSetGoal?.(row, col);
       return;
     }
-    // road/erase: skip start/goal cells
     if (isStart(row, col) || isGoal(row, col)) return;
-    onSetRoad(row, col, dragMode === 'road');
-  };
+    onSetRoad(row, col, mode === 'road');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start, goal, onSetStart, onSetGoal, onSetRoad]);
+
+  const handleDragEnd = useCallback(() => {
+    dragModeRef.current = null;
+    lastTouchCell.current = null;
+  }, []);
+
+  // Touch: resolve cell from touch coordinates
+  const getCellFromTouch = useCallback((touch: { clientX: number; clientY: number }): [number, number] | null => {
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!el) return null;
+    const cellEl = (el as HTMLElement).closest('[data-row]') as HTMLElement | null;
+    if (!cellEl) return null;
+    const r = parseInt(cellEl.dataset.row!, 10);
+    const c = parseInt(cellEl.dataset.col!, 10);
+    if (isNaN(r) || isNaN(c)) return null;
+    return [r, c];
+  }, []);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (disabled) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const cell = getCellFromTouch(touch);
+    if (!cell) return;
+    e.preventDefault();
+    lastTouchCell.current = `${cell[0]},${cell[1]}`;
+    handleCellDown(cell[0], cell[1]);
+  }, [disabled, getCellFromTouch, handleCellDown]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (disabled || !dragModeRef.current) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const cell = getCellFromTouch(touch);
+    if (!cell) return;
+    e.preventDefault();
+    const key = `${cell[0]},${cell[1]}`;
+    if (key === lastTouchCell.current) return;
+    lastTouchCell.current = key;
+    handleCellMove(cell[0], cell[1]);
+  }, [disabled, getCellFromTouch, handleCellMove]);
 
   const fovHalf = 2; // OBS_VIEW_SIZE=5 → half=2
   const fovCells = useMemo(() => {
@@ -118,12 +161,14 @@ export function GridEditor({
     return set;
   }, [agentPosition, rows, cols]);
 
-  const handleMouseUp = () => setDragMode(null);
-
   return (
     <div
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
+      onMouseUp={handleDragEnd}
+      onMouseLeave={handleDragEnd}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleDragEnd}
+      onTouchCancel={handleDragEnd}
       style={{
         display: 'grid',
         gridTemplateColumns: `repeat(${cols}, 1fr)`,
@@ -134,6 +179,7 @@ export function GridEditor({
         boxShadow: 'var(--shadow-md)',
         width: '100%',
         flexShrink: 0,
+        touchAction: disabled ? 'auto' : 'none',
       }}
     >
       {Array.from({ length: rows }, (_, r) =>
@@ -155,8 +201,8 @@ export function GridEditor({
               inFov={fovCells !== null && fovCells.has(key)}
               showDecorations={showDecorations}
               roadConn={getRoadConn(r, c)}
-              onMouseDown={() => handleMouseDown(r, c)}
-              onMouseEnter={() => handleMouseEnter(r, c)}
+              onMouseDown={() => handleCellDown(r, c)}
+              onMouseEnter={() => handleCellMove(r, c)}
               disabled={disabled}
               draggable={!disabled && (cellType === 'start' || cellType === 'goal')}
             />

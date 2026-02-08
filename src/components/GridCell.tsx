@@ -93,6 +93,8 @@ export function GridCell({
 
   return (
     <div
+      data-row={row}
+      data-col={col}
       onMouseDown={disabled ? undefined : onMouseDown}
       onMouseEnter={disabled ? undefined : onMouseEnter}
       style={{

@@ -319,7 +319,7 @@ function App() {
             <p className="subtitle">道路をたくさん走らせて、賢い自動運転を作ろう！</p>
           </div>
           {isEditing && (
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.8, marginLeft: 'auto' }}>
+            <div className="header-steps">
               ① コースを作る → ②「学習する」→ ③「実力を試す」
             </div>
           )}
@@ -358,10 +358,10 @@ function App() {
           onDelete={handleDeleteModel}
         />
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'stretch' }}>
-          <div className="card" style={{ display: 'flex', gap: 16, padding: 20, alignItems: 'flex-start', flexShrink: 0 }}>
+        <div className="main-flex">
+          <div className="card editor-card">
             {isEditing && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 150, flexShrink: 0 }}>
+              <div className="sidebar-panel">
                 <MazeListPanel
                   mazes={maze.mazes}
                   activeMazeIdx={maze.activeMazeIdx}
@@ -383,7 +383,7 @@ function App() {
               </div>
             )}
             {isPlayground && !playRunning && !playHasResult && (
-              <div style={{ width: 150, flexShrink: 0 }}>
+              <div className="sidebar-panel">
                 <PlaygroundCoursePanel
                   savedSets={savedCourseSets}
                   onSave={handlePlaygroundSaveCourse}
@@ -392,7 +392,7 @@ function App() {
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, width: 500, maxWidth: 560 }}>
+            <div className="grid-column">
               {isEditing && (
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                   {([[5, '初級'], [10, '中級'], [15, '上級']] as const).map(([s, label]) => (
@@ -442,7 +442,7 @@ function App() {
           </div>
 
           {isEditing && (
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 200, padding: 24 }}>
+            <div className="card settings-card">
               <HyperParamsPanel
                 value={hyperParams}
                 onChange={setHyperParams}
@@ -504,11 +504,11 @@ function App() {
             activeIndex={selectedTestIdx ?? undefined}
             onSelect={handleSelectTest}
           />
-          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="result-bottom">
+            <div className="result-bottom-chart">
               <EpisodeChart episodes={training.episodes} sessionBoundaries={training.sessionBoundaries} />
             </div>
-            <div className="card" style={{ minWidth: 200, padding: 16, fontSize: 13 }}>
+            <div className="card result-bottom-info">
               <div style={{ fontWeight: 700, marginBottom: 8, color: 'var(--color-text)' }}>学習コース</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
                 {maze.mazes.map(m => (

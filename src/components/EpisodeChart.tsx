@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import type { EpisodeResult } from '../types';
 
 interface EpisodeChartProps {
@@ -7,10 +7,25 @@ interface EpisodeChartProps {
 }
 
 export function EpisodeChart({ episodes, sessionBoundaries = [] }: EpisodeChartProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(400);
+
+  const updateWidth = useCallback(() => {
+    if (containerRef.current) {
+      setContainerWidth(containerRef.current.clientWidth);
+    }
+  }, []);
+
+  useEffect(() => {
+    updateWidth();
+    window.addEventListener('resize', updateWidth);
+    return () => window.removeEventListener('resize', updateWidth);
+  }, [updateWidth]);
+
   if (episodes.length === 0) return null;
 
   const maxSteps = Math.max(...episodes.map(e => e.steps), 1);
-  const barWidth = Math.max(2, Math.min(8, 400 / episodes.length));
+  const barWidth = Math.max(2, Math.min(8, containerWidth / episodes.length));
   const chartHeight = 120;
 
   // Show last 100 episodes max
@@ -26,7 +41,7 @@ export function EpisodeChart({ episodes, sessionBoundaries = [] }: EpisodeChartP
   );
 
   return (
-    <div className="card" style={{ padding: '12px 16px', overflow: 'hidden' }}>
+    <div ref={containerRef} className="card" style={{ padding: '12px 16px', overflow: 'hidden' }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
         ステップ数の推移 (Episode {episodes.length})
       </div>
