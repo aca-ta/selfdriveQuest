@@ -41,12 +41,12 @@ function mazeConfigToRoads(cfg: MazeConfig): Set<string> {
 }
 
 const HP_LABELS: { key: string; label: string; format: (v: number) => string }[] = [
-  { key: 'maxEpisodes', label: '練習回数', format: v => `${v}回` },
-  { key: 'lr', label: '学習率', format: v => v.toFixed(4) },
-  { key: 'gamma', label: '割引率', format: v => v.toFixed(3) },
-  { key: 'epsilonEnd', label: 'ε最終値', format: v => `${(v * 100).toFixed(0)}%` },
-  { key: 'revisitPenalty', label: '再訪ペナルティ', format: v => v.toFixed(2) },
-  { key: 'hiddenSize', label: '隠れ層サイズ', format: v => `${v}` },
+  { key: 'maxEpisodes', label: '練習回数 (エピソード数)', format: v => `${v}回` },
+  { key: 'lr', label: '学習のコツ (学習率)', format: v => v.toFixed(3) },
+  { key: 'gamma', label: '先のことを考える力 (割引率)', format: v => v.toFixed(3) },
+  { key: 'epsilonEnd', label: 'チャレンジ精神 (ε最終値)', format: v => `${(v * 100).toFixed(0)}%` },
+  { key: 'revisitPenalty', label: '新しい道を探す力 (再訪ペナルティ)', format: v => v.toFixed(2) },
+  { key: 'hiddenSize', label: '脳の大きさ (隠れ層サイズ)', format: v => `${v}` },
 ];
 
 function SlotDetail({ info, onClose }: { info: SaveSlotInfo; onClose: () => void }) {
@@ -342,7 +342,7 @@ export function ModelSlotPanel({ slots, canSave, activeSlot, modelName, onModelN
                       style={{ fontSize: 11, padding: '3px 8px' }}
                       onClick={() => setDetailSlot(detailSlot === slot ? null : slot)}
                     >
-                      {detailSlot === slot ? '閉じる' : '情報'}
+                      {detailSlot === slot ? '閉じる' : '詳細'}
                     </button>
                     {canSave && (
                       <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => onSave(slot, currentName)} disabled={!currentName.trim()}>
