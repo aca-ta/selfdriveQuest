@@ -240,7 +240,7 @@ export function useTraining() {
     };
   }, []);
 
-  const startTraining = useCallback((mazeConfigs: MazeConfig[], hp: HyperParams) => {
+  const startTraining = useCallback((mazeConfigs: MazeConfig[], hp: HyperParams, fresh?: boolean) => {
     setError(null);
 
     // バリデーション (メインスレッドで即座に実行 — BFS は軽量)
@@ -258,13 +258,17 @@ export function useTraining() {
     setCurrentEpisode(0);
     setCurrentMazeIndex(0);
     setAgentPosition(null);
-    setLog([`--- 学習開始 (${mazeConfigs.length}コース) ---`]);
+    if (fresh) {
+      setModelReady(false);
+    }
+    setLog([`--- ${fresh ? '新規' : ''}学習開始 (${mazeConfigs.length}コース) ---`]);
 
     // Worker に学習コマンドを送信
     getWorker().postMessage({
       type: 'start_train',
       mazes: mazeConfigs,
       hp,
+      ...(fresh ? { fresh: true } : {}),
     });
   }, [getWorker]);
 

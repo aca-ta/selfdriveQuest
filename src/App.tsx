@@ -10,6 +10,7 @@ import { ScoreDisplay } from './components/ScoreDisplay';
 import { AgentLog } from './components/AgentLog';
 import { HyperParamsPanel, DEFAULT_HYPER_PARAMS } from './components/HyperParamsPanel';
 import { ModelSlotPanel } from './components/ModelSlotPanel';
+import { TrainActions } from './components/TrainActions';
 import type { HyperParams } from './types';
 import './App.css';
 
@@ -164,6 +165,11 @@ function App() {
   const handleTrain = useCallback(() => {
     const configs = maze.getMazeConfigs();
     training.startTraining(configs, hyperParams);
+  }, [maze, training, hyperParams]);
+
+  const handleFreshTrain = useCallback(() => {
+    const configs = maze.getMazeConfigs();
+    training.startTraining(configs, hyperParams, true);
   }, [maze, training, hyperParams]);
 
   const handleBackToEdit = useCallback(() => {
@@ -372,9 +378,12 @@ function App() {
                 onChange={setHyperParams}
                 disabled={false}
               />
-              <button className="btn btn-success btn-lg" style={{ width: '100%', marginTop: 16 }} onClick={handleTrain} disabled={maze.mazes.length === 0 || (training.activeSlot != null && !training.modelName?.trim())}>
-                学習する
-              </button>
+              <TrainActions
+                modelReady={training.modelReady}
+                disabled={maze.mazes.length === 0 || (training.activeSlot != null && !training.modelName?.trim())}
+                onContinueTrain={handleTrain}
+                onFreshTrain={handleFreshTrain}
+              />
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button className="btn btn-accent" style={{ flex: 1, fontSize: 12 }} onClick={handleStartTest} disabled={!training.modelReady}>
                   実力を試す
