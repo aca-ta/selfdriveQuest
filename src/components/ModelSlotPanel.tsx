@@ -46,9 +46,10 @@ const HP_LABELS: { key: string; label: string; format: (v: number) => string }[]
   { key: 'gamma', label: '割引率', format: v => v.toFixed(3) },
   { key: 'epsilonEnd', label: 'ε最終値', format: v => `${(v * 100).toFixed(0)}%` },
   { key: 'revisitPenalty', label: '再訪ペナルティ', format: v => v.toFixed(2) },
+  { key: 'hiddenSize', label: '隠れ層サイズ', format: v => `${v}` },
 ];
 
-function SlotDetail({ info }: { info: SaveSlotInfo }) {
+function SlotDetail({ info, onClose }: { info: SaveSlotInfo; onClose: () => void }) {
   const hp = info.hyperParams;
   const ep = info.episodes;
   const boundaries = info.sessionBoundaries ?? [];
@@ -77,9 +78,23 @@ function SlotDetail({ info }: { info: SaveSlotInfo }) {
       display: 'flex',
       flexDirection: 'column',
       gap: 10,
+      maxHeight: 400,
+      overflowY: 'auto',
     }}>
-      <div style={{ fontWeight: 700, color: 'var(--color-text)', fontSize: 13 }}>
-        {info.name ? `"${info.name}" の詳細` : `スロット ${info.slot + 1} の詳細`}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontWeight: 700, color: 'var(--color-text)', fontSize: 13 }}>
+          {info.name ? `"${info.name}" の詳細` : `スロット ${info.slot + 1} の詳細`}
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 18, color: 'var(--color-text-secondary)', lineHeight: 1, padding: '0 2px',
+          }}
+          aria-label="閉じる"
+        >
+          &times;
+        </button>
       </div>
 
       {/* 学習コース */}
@@ -392,7 +407,7 @@ export function ModelSlotPanel({ slots, canSave, activeSlot, modelName, onModelN
       {/* 詳細パネル */}
       {detailSlot != null && slotMap.has(detailSlot) && (
         <div style={{ marginTop: 8 }}>
-          <SlotDetail info={slotMap.get(detailSlot)!} />
+          <SlotDetail info={slotMap.get(detailSlot)!} onClose={() => setDetailSlot(null)} />
         </div>
       )}
     </div>

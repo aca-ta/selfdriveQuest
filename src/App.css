@@ -224,6 +224,8 @@ html, body {
   justify-content: center;
   z-index: 100;
   animation: fadeIn 0.3s ease-out;
+  padding: 24px;
+  overflow-y: auto;
 }
 
 .modal-content {
@@ -235,6 +237,8 @@ html, body {
   border: 1px solid var(--color-border);
   max-width: 900px;
   width: 95%;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
 }
 
 .modal-content-sm {

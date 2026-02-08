@@ -82,11 +82,8 @@ export function ControlPanel({
                 自分のコースで走らせる
               </button>
             )}
-            <button className="btn btn-info" onClick={onBackToEdit}>
-              もっと鍛える
-            </button>
-            <button className="btn btn-ghost" onClick={onReset}>
-              新しいモデルを作る
+            <button className="btn btn-secondary" onClick={onBackToEdit}>
+              モデルを学習する
             </button>
           </>
         )}

@@ -20,6 +20,7 @@ interface MazeListPanelProps {
   onSelect: (idx: number) => void;
   onAdd: () => void;
   onRemove: (idx: number) => void;
+  onRemoveAll: () => void;
 }
 
 export function MiniGrid({
@@ -83,6 +84,7 @@ export function MazeListPanel({
   onSelect,
   onAdd,
   onRemove,
+  onRemoveAll,
 }: MazeListPanelProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 480, overflowY: 'auto', alignItems: 'center' }}>
@@ -91,21 +93,41 @@ export function MazeListPanel({
           コース ({mazes.length})
         </div>
         {!disabled && (
-          <button
-            onClick={onAdd}
-            style={{
-              padding: '6px 8px',
-              border: '2px dashed var(--color-border)',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'transparent',
-              cursor: 'pointer',
-              fontSize: 12,
-              color: 'var(--color-text-secondary)',
-              transition: 'border-color 0.15s',
-            }}
-          >
-            + 追加
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              onClick={onAdd}
+              style={{
+                flex: 1,
+                padding: '6px 8px',
+                border: '2px dashed var(--color-border)',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'transparent',
+                cursor: 'pointer',
+                fontSize: 12,
+                color: 'var(--color-text-secondary)',
+                transition: 'border-color 0.15s',
+              }}
+            >
+              + 追加
+            </button>
+            {mazes.length > 1 && (
+              <button
+                onClick={onRemoveAll}
+                style={{
+                  padding: '6px 8px',
+                  border: '2px dashed var(--color-danger)',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'transparent',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  color: 'var(--color-danger)',
+                  transition: 'border-color 0.15s',
+                }}
+              >
+                全削除
+              </button>
+            )}
+          </div>
         )}
       </div>
       {mazes.map((maze, idx) => (

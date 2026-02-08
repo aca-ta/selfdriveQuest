@@ -144,13 +144,23 @@ self.onmessage = async (e: MessageEvent<WorkerCommand>) => {
 
   switch (cmd.type) {
     case 'start_train': {
+      const isAdditional = !cmd.fresh && agent !== null;
+      const gridArea = cmd.mazes[0].num_rows * cmd.mazes[0].num_cols;
+      const bufferSize = Math.max(50_000, Math.min(gridArea * 1000, 150_000));
       agent = resolveAgent(agent, cmd.fresh, () => new DQNAgent({
         obsDim: MazeEnv.OBS_DIM,
         lr: cmd.hp.lr,
         gamma: cmd.hp.gamma,
         epsilonEnd: cmd.hp.epsilonEnd,
         epsilonDecayEpisodes: cmd.hp.epsilonDecayEpisodes,
+        bufferSize,
+        hiddenSize: cmd.hp.hiddenSize,
       }));
+
+      // 追加学習時はepsilonを中間値から再スタート（新コースでの探索を促進）
+      if (isAdditional) {
+        agent.resetExploration(0.4);
+      }
 
       abortController = new AbortController();
 
@@ -224,11 +234,12 @@ self.onmessage = async (e: MessageEvent<WorkerCommand>) => {
     case 'load_model': {
       try {
         const key = modelKey(cmd.slot);
-        if (!agent) {
-          agent = new DQNAgent({ obsDim: MazeEnv.OBS_DIM });
-        }
-        await agent.loadModel(key);
         const meta = await loadMeta(cmd.slot);
+        const hiddenSize = meta?.hyperParams?.hiddenSize ?? 128;
+        // hiddenSizeが異なる場合は再生成が必要
+        if (agent) { agent.dispose(); agent = null; }
+        agent = new DQNAgent({ obsDim: MazeEnv.OBS_DIM, hiddenSize });
+        await agent.loadModel(key);
         send({ type: 'model_loaded', slot: cmd.slot, log: meta ?? undefined });
       } catch (err) {
         send({ type: 'error', message: `読み込みに失敗しました: ${err}` });
