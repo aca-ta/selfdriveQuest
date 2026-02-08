@@ -127,11 +127,17 @@ interface DeleteModelCommand {
   slot: number;
 }
 
+interface CopyModelCommand {
+  type: 'copy_model';
+  fromSlot: number;
+  toSlot: number;
+}
+
 interface ListModelsCommand {
   type: 'list_models';
 }
 
-type WorkerCommand = StartTrainCommand | StartTestCommand | PlayCommand | StopCommand | ResetCommand | SaveModelCommand | LoadModelCommand | DeleteModelCommand | ListModelsCommand;
+type WorkerCommand = StartTrainCommand | StartTestCommand | PlayCommand | StopCommand | ResetCommand | SaveModelCommand | LoadModelCommand | DeleteModelCommand | CopyModelCommand | ListModelsCommand;
 
 self.onmessage = async (e: MessageEvent<WorkerCommand>) => {
   const cmd = e.data;
@@ -238,6 +244,29 @@ self.onmessage = async (e: MessageEvent<WorkerCommand>) => {
         await deleteMeta(cmd.slot);
       } catch { /* ignore */ }
       send({ type: 'model_deleted', slot: cmd.slot });
+      break;
+    }
+
+    case 'copy_model': {
+      try {
+        const srcKey = modelKey(cmd.fromSlot);
+        const dstKey = modelKey(cmd.toSlot);
+        // TF.js モデルウェイトをコピー
+        await tf.io.copyModel(`indexeddb://${srcKey}`, `indexeddb://${dstKey}`);
+        // メタデータをコピー（スロット番号と保存日時を更新）
+        const srcMeta = await loadMeta(cmd.fromSlot);
+        if (srcMeta) {
+          const newMeta: SaveSlotInfo = {
+            ...srcMeta,
+            slot: cmd.toSlot,
+            savedAt: new Date().toISOString(),
+          };
+          await saveMeta(newMeta);
+          send({ type: 'model_saved', slotInfo: newMeta });
+        }
+      } catch (err) {
+        send({ type: 'error', message: `コピーに失敗しました: ${err}` });
+      }
       break;
     }
 

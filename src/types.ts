@@ -140,6 +140,8 @@ export interface SaveSlotInfo {
   mazes?: MazeConfig[];
   hyperParams?: HyperParams;
   episodes?: EpisodeResult[];
+  sessionBoundaries?: number[];
+  mazeHistory?: MazeConfig[][];
   score?: ScoreData | null;
   testSummary?: { success: number; total: number };
 }

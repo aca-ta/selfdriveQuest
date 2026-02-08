@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { GridCell } from './GridCell';
 import type { CellType } from '../types';
 
@@ -101,6 +101,23 @@ export function GridEditor({
     onSetRoad(row, col, dragMode === 'road');
   };
 
+  const fovHalf = 2; // OBS_VIEW_SIZE=5 → half=2
+  const fovCells = useMemo(() => {
+    if (!agentPosition) return null;
+    const set = new Set<string>();
+    const [ar, ac] = agentPosition;
+    for (let dr = -fovHalf; dr <= fovHalf; dr++) {
+      for (let dc = -fovHalf; dc <= fovHalf; dc++) {
+        const r = ar + dr;
+        const c = ac + dc;
+        if (r >= 0 && r < rows && c >= 0 && c < cols) {
+          set.add(`${r},${c}`);
+        }
+      }
+    }
+    return set;
+  }, [agentPosition, rows, cols]);
+
   const handleMouseUp = () => setDragMode(null);
 
   return (
@@ -135,6 +152,7 @@ export function GridEditor({
                 agentPosition[1] === c
               }
               isOnPath={pathCells.has(key)}
+              inFov={fovCells !== null && fovCells.has(key)}
               showDecorations={showDecorations}
               roadConn={getRoadConn(r, c)}
               onMouseDown={() => handleMouseDown(r, c)}

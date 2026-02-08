@@ -20,6 +20,8 @@ export function useTraining() {
   const [currentEpisode, setCurrentEpisode] = useState(0);
   const [currentMazeIndex, setCurrentMazeIndex] = useState(0);
   const [episodes, setEpisodes] = useState<EpisodeResult[]>([]);
+  const [sessionBoundaries, setSessionBoundaries] = useState<number[]>([]);
+  const [mazeHistory, setMazeHistory] = useState<MazeConfig[][]>([]);
   const [finalPaths, setFinalPaths] = useState<[number, number][][]>([]);
   const [testResults, setTestResults] = useState<TestResultData[]>([]);
   const [currentTestMaze, setCurrentTestMaze] = useState<{
@@ -38,6 +40,8 @@ export function useTraining() {
   const [modelReady, setModelReady] = useState(false);
 
   const mazeConfigsRef = useRef<MazeConfig[]>([]);
+  const episodesRef = useRef(0);
+  episodesRef.current = episodes.length;
 
   // Web Worker (エージェントと学習ループを別スレッドで実行)
   const workerRef = useRef<Worker | null>(null);
@@ -188,6 +192,8 @@ export function useTraining() {
         if (logData?.episodes) {
           setEpisodes(logData.episodes);
         }
+        setSessionBoundaries(logData?.sessionBoundaries ?? []);
+        setMazeHistory(logData?.mazeHistory ?? []);
         if (logData?.score) {
           setScore(logData.score);
         }
@@ -254,14 +260,27 @@ export function useTraining() {
 
     mazeConfigsRef.current = mazeConfigs;
     setPhase('train');
-    setEpisodes([]);
+    if (fresh) {
+      setEpisodes([]);
+      setSessionBoundaries([]);
+      setMazeHistory([]);
+      setModelReady(false);
+    } else {
+      // 追加学習: 現在のエピソード数をセッション境界として記録
+      setSessionBoundaries(prev => [...prev, episodesRef.current]);
+      // 前セッションのコースを履歴に追加
+      if (mazeConfigsRef.current.length > 0) {
+        setMazeHistory(prev => [...prev, mazeConfigsRef.current]);
+      }
+    }
     setCurrentEpisode(0);
     setCurrentMazeIndex(0);
     setAgentPosition(null);
     if (fresh) {
-      setModelReady(false);
+      setLog([`--- 新規学習開始 (${mazeConfigs.length}コース) ---`]);
+    } else {
+      setLog(prev => [...prev, `--- 追加学習開始 (${mazeConfigs.length}コース) ---`]);
     }
-    setLog([`--- ${fresh ? '新規' : ''}学習開始 (${mazeConfigs.length}コース) ---`]);
 
     // Worker に学習コマンドを送信
     getWorker().postMessage({
@@ -369,6 +388,8 @@ export function useTraining() {
     mazes?: MazeConfig[];
     hyperParams?: HyperParams;
     episodes?: EpisodeResult[];
+    sessionBoundaries?: number[];
+    mazeHistory?: MazeConfig[][];
     score?: ScoreData | null;
     testSummary?: { success: number; total: number };
   }) => {
@@ -380,6 +401,11 @@ export function useTraining() {
   const loadModel = useCallback((slot: number) => {
     setError(null);
     getWorker().postMessage({ type: 'load_model', slot });
+  }, [getWorker]);
+
+  // モデルコピー
+  const copyModel = useCallback((fromSlot: number, toSlot: number) => {
+    getWorker().postMessage({ type: 'copy_model', fromSlot, toSlot });
   }, [getWorker]);
 
   // モデル削除
@@ -399,6 +425,8 @@ export function useTraining() {
     setPhase('edit');
     setAgentPosition(null);
     setEpisodes([]);
+    setSessionBoundaries([]);
+    setMazeHistory([]);
     setFinalPaths([]);
     setTestResults([]);
     setCurrentTestMaze(null);
@@ -416,6 +444,8 @@ export function useTraining() {
     currentEpisode,
     currentMazeIndex,
     episodes,
+    sessionBoundaries,
+    mazeHistory,
     finalPaths,
     testResults,
     currentTestMaze,
@@ -440,6 +470,7 @@ export function useTraining() {
     reset,
     saveModel,
     loadModel,
+    copyModel,
     deleteModel,
     refreshSlots,
   };

@@ -11,6 +11,7 @@ interface ModelSlotPanelProps {
   onSave: (slot: number, name: string) => void;
   onLoad: (slot: number) => void;
   onSelect?: (slot: number) => void;
+  onCopy?: (fromSlot: number, toSlot: number) => void;
   onDelete?: (slot: number) => void;
 }
 
@@ -50,8 +51,20 @@ const HP_LABELS: { key: string; label: string; format: (v: number) => string }[]
 function SlotDetail({ info }: { info: SaveSlotInfo }) {
   const hp = info.hyperParams;
   const ep = info.episodes;
+  const boundaries = info.sessionBoundaries ?? [];
+  const history = info.mazeHistory ?? [];
   const successCount = ep ? ep.filter(e => e.reached_goal).length : 0;
   const totalEp = ep?.length ?? 0;
+  const sessionCount = boundaries.length + 1;
+
+  // セッションごとのコース一覧: [...過去セッション, 現在のコース]
+  const allSessionMazes: MazeConfig[][] = [];
+  for (let i = 0; i < history.length; i++) {
+    allSessionMazes.push(history[i]);
+  }
+  if (info.mazes && info.mazes.length > 0) {
+    allSessionMazes.push(info.mazes);
+  }
 
   return (
     <div style={{
@@ -70,22 +83,47 @@ function SlotDetail({ info }: { info: SaveSlotInfo }) {
       </div>
 
       {/* 学習コース */}
-      {info.mazes && info.mazes.length > 0 && (
+      {allSessionMazes.length > 0 && (
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>学習コース ({info.mazes.length})</div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {info.mazes.map((m, i) => (
-              <MiniGrid
-                key={i}
-                roads={mazeConfigToRoads(m)}
-                start={m.start}
-                goal={m.goal}
-                rows={m.num_rows}
-                cols={m.num_cols}
-                isActive={false}
-              />
-            ))}
-          </div>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>学習コース</div>
+          {allSessionMazes.length === 1 ? (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {allSessionMazes[0].map((m, i) => (
+                <MiniGrid
+                  key={i}
+                  roads={mazeConfigToRoads(m)}
+                  start={m.start}
+                  goal={m.goal}
+                  rows={m.num_rows}
+                  cols={m.num_cols}
+                  isActive={false}
+                />
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {allSessionMazes.map((mazes, si) => (
+                <div key={si}>
+                  <div style={{ fontSize: 11, color: 'var(--color-info)', marginBottom: 2 }}>
+                    セッション {si + 1}{si === allSessionMazes.length - 1 ? '（最新）' : ''}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {mazes.map((m, i) => (
+                      <MiniGrid
+                        key={i}
+                        roads={mazeConfigToRoads(m)}
+                        start={m.start}
+                        goal={m.goal}
+                        rows={m.num_rows}
+                        cols={m.num_cols}
+                        isActive={false}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -110,32 +148,63 @@ function SlotDetail({ info }: { info: SaveSlotInfo }) {
       {/* 収束ログ */}
       {ep && ep.length > 0 && (
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>学習ログ</div>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>
+            学習ログ
+            {sessionCount > 1 && (
+              <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--color-info)', marginLeft: 6 }}>
+                ({sessionCount}セッション)
+              </span>
+            )}
+          </div>
           <div>
             エピソード数: <span style={{ color: 'var(--color-text)' }}>{totalEp}</span>
             {' / '}
             ゴール到達: <span style={{ color: successCount > 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>{successCount}/{totalEp}</span>
           </div>
           {/* 簡易チャート: 直近のエピソードをバーで表示 */}
-          <div style={{ display: 'flex', gap: 1, alignItems: 'flex-end', height: 32, marginTop: 6 }}>
+          <div style={{ display: 'flex', gap: 1, alignItems: 'flex-end', height: 32, marginTop: 6, position: 'relative' }}>
             {(() => {
               const maxBars = 60;
               const stride = Math.max(1, Math.floor(ep.length / maxBars));
               const sampled = ep.filter((_, i) => i % stride === 0);
               const maxSteps = Math.max(...sampled.map(e => e.steps), 1);
-              return sampled.map((e, i) => (
-                <div
-                  key={i}
-                  style={{
-                    flex: 1,
-                    maxWidth: 4,
-                    height: `${Math.max(2, (e.steps / maxSteps) * 100)}%`,
-                    backgroundColor: e.reached_goal ? 'var(--color-success)' : 'var(--color-danger)',
-                    borderRadius: 1,
-                    opacity: 0.8,
-                  }}
-                />
-              ));
+              const totalBars = sampled.length;
+              // 境界位置をサンプリング後のインデックスに変換
+              const boundaryPositions = boundaries
+                .map(b => Math.floor(b / stride))
+                .filter(b => b > 0 && b < totalBars);
+              return (
+                <>
+                  {sampled.map((e, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        flex: 1,
+                        maxWidth: 4,
+                        height: `${Math.max(2, (e.steps / maxSteps) * 100)}%`,
+                        backgroundColor: e.reached_goal ? 'var(--color-success)' : 'var(--color-danger)',
+                        borderRadius: 1,
+                        opacity: 0.8,
+                      }}
+                    />
+                  ))}
+                  {/* セッション境界線 */}
+                  {boundaryPositions.map((pos, i) => (
+                    <div
+                      key={`b-${i}`}
+                      style={{
+                        position: 'absolute',
+                        left: `${(pos / totalBars) * 100}%`,
+                        top: 0,
+                        bottom: 0,
+                        width: 2,
+                        backgroundColor: 'var(--color-info)',
+                        opacity: 0.6,
+                      }}
+                    />
+                  ))}
+                </>
+              );
             })()}
           </div>
         </div>
@@ -162,9 +231,10 @@ function SlotDetail({ info }: { info: SaveSlotInfo }) {
   );
 }
 
-export function ModelSlotPanel({ slots, canSave, activeSlot, modelName, onModelNameChange, onSave, onLoad, onSelect, onDelete }: ModelSlotPanelProps) {
+export function ModelSlotPanel({ slots, canSave, activeSlot, modelName, onModelNameChange, onSave, onLoad, onSelect, onCopy, onDelete }: ModelSlotPanelProps) {
   const slotMap = new Map(slots.map(s => [s.slot, s]));
   const [detailSlot, setDetailSlot] = useState<number | null>(null);
+  const [copyingFrom, setCopyingFrom] = useState<number | null>(null);
 
   const currentName = modelName ?? '';
   const editable = !!onModelNameChange;
@@ -264,12 +334,37 @@ export function ModelSlotPanel({ slots, canSave, activeSlot, modelName, onModelN
                         上書き
                       </button>
                     )}
+                    {onCopy && (
+                      <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '3px 8px' }} onClick={() => setCopyingFrom(copyingFrom === slot ? null : slot)}>
+                        {copyingFrom === slot ? 'キャンセル' : 'コピー'}
+                      </button>
+                    )}
                     {onDelete && (
                       <button className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '3px 8px', color: 'var(--color-danger)' }} onClick={() => { if (confirm('このモデルを削除しますか？')) onDelete(slot); }}>
                         削除
                       </button>
                     )}
                   </div>
+                  {copyingFrom === slot && (
+                    <div style={{ display: 'flex', gap: 4, marginTop: 4, alignItems: 'center' }}>
+                      <span style={{ fontSize: 10, color: 'var(--color-text-secondary)' }}>コピー先:</span>
+                      {[0, 1, 2].filter(s => s !== slot).map(target => (
+                        <button
+                          key={target}
+                          className="btn btn-primary btn-sm"
+                          style={{ fontSize: 10, padding: '2px 8px' }}
+                          onClick={() => {
+                            const targetInfo = slotMap.get(target);
+                            if (targetInfo && !confirm(`スロット${target + 1}を上書きしますか？`)) return;
+                            onCopy!(slot, target);
+                            setCopyingFrom(null);
+                          }}
+                        >
+                          スロット {target + 1}{slotMap.has(target) ? '' : '(空)'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </>
               ) : (
                 <>

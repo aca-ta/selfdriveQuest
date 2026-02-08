@@ -116,21 +116,6 @@ export function useMaze(initialRows = 10, initialCols = 10) {
     setActiveMazeIdx(newIdx);
   }, [mazes.length, gridSize]);
 
-  // walls 配列からコースをインポートして追加
-  const addMazeFromWalls = useCallback((
-    walls: [number, number][],
-    start?: [number, number],
-    goal?: [number, number],
-  ) => {
-    const { rows, cols } = gridSize;
-    const s: [number, number] = start ?? [0, 0];
-    const g: [number, number] = goal ?? [rows - 1, cols - 1];
-    const roads = wallsToRoads(walls, rows, cols, s, g);
-    const newMaze: MazeData = { id: nextId++, roads, start: s, goal: g };
-    setMazes(prev => [...prev, newMaze]);
-    setActiveMazeIdx(mazes.length);
-  }, [gridSize, mazes.length]);
-
   const removeMaze = useCallback((idx: number) => {
     if (mazes.length <= 1) return;
     setMazes(prev => prev.filter((_, i) => i !== idx));
@@ -208,7 +193,6 @@ export function useMaze(initialRows = 10, initialCols = 10) {
     regenerateActiveMaze,
     addMaze,
     addEmptyMaze,
-    addMazeFromWalls,
     removeMaze,
     removeLastMaze,
     clearRoads,

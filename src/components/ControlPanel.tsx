@@ -12,12 +12,10 @@ interface ControlPanelProps {
   onRegenerate: () => void;
   onBackToEdit: () => void;
   onTest?: () => void;
-  onAddFailedCourses?: () => void;
   onShowScore?: () => void;
   onRunPlayground?: () => void;
   onEnterPlayground?: () => void;
   playRunning?: boolean;
-  failedCount?: number;
 }
 
 export function ControlPanel({
@@ -32,12 +30,10 @@ export function ControlPanel({
   onRegenerate,
   onBackToEdit,
   onTest,
-  onAddFailedCourses,
   onShowScore,
   onRunPlayground,
   onEnterPlayground,
   playRunning,
-  failedCount,
 }: ControlPanelProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -79,11 +75,6 @@ export function ControlPanel({
             {onShowScore && (
               <button className="btn btn-accent btn-sm" onClick={onShowScore}>
                 スコアを見る
-              </button>
-            )}
-            {onAddFailedCourses && failedCount && failedCount > 0 && (
-              <button className="btn btn-danger" onClick={onAddFailedCourses}>
-                失敗コースを追加して再学習（{failedCount}件）
               </button>
             )}
             {onEnterPlayground && (
