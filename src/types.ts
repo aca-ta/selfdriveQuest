@@ -86,7 +86,11 @@ export type WsServerMessage =
   | WsTestStepMessage
   | WsTestResultMessage
   | WsTestDoneMessage
-  | WsErrorMessage;
+  | WsErrorMessage
+  | WsModelSavedMessage
+  | WsModelLoadedMessage
+  | WsModelDeletedMessage
+  | WsModelListMessage;
 
 export interface EpisodeResult {
   episode: number;
@@ -125,4 +129,38 @@ export interface ScoreData {
   success_rate: number;
   avg_efficiency: number;
   total_score: number;
+}
+
+// ─── Model Save/Load ───
+
+export interface SaveSlotInfo {
+  slot: number;
+  savedAt: string;
+  name?: string;
+  mazes?: MazeConfig[];
+  hyperParams?: HyperParams;
+  episodes?: EpisodeResult[];
+  score?: ScoreData | null;
+  testSummary?: { success: number; total: number };
+}
+
+export interface WsModelSavedMessage {
+  type: 'model_saved';
+  slotInfo: SaveSlotInfo;
+}
+
+export interface WsModelLoadedMessage {
+  type: 'model_loaded';
+  slot: number;
+  log?: SaveSlotInfo;
+}
+
+export interface WsModelDeletedMessage {
+  type: 'model_deleted';
+  slot: number;
+}
+
+export interface WsModelListMessage {
+  type: 'model_list';
+  slots: SaveSlotInfo[];
 }

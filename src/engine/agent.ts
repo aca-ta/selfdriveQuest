@@ -248,6 +248,20 @@ export class DQNAgent {
     return path;
   }
 
+  async saveModel(key: string): Promise<void> {
+    await this.policyNet.save(`indexeddb://${key}`);
+  }
+
+  async loadModel(key: string): Promise<void> {
+    const loaded = await tf.loadLayersModel(`indexeddb://${key}`);
+    const weights = loaded.getWeights();
+    this.policyNet.setWeights(weights);
+    this.targetNet.setWeights(weights.map(w => w.clone()));
+    loaded.dispose();
+    // 読み込み後はgreedy寄りに
+    this.epsilon = this.epsilonEnd;
+  }
+
   dispose(): void {
     this.policyNet.dispose();
     this.targetNet.dispose();

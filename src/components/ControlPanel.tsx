@@ -4,6 +4,7 @@ interface ControlPanelProps {
   phase: GamePhase;
   currentEpisode: number;
   error: string | null;
+  modelName?: string | null;
   onStop: () => void;
   onStopTest?: () => void;
   onReset: () => void;
@@ -23,6 +24,7 @@ export function ControlPanel({
   phase,
   currentEpisode,
   error,
+  modelName,
   onStop,
   onStopTest,
   onReset,
@@ -42,6 +44,11 @@ export function ControlPanel({
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         {phase === 'train' && (
           <>
+            {modelName && (
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-info)' }}>
+                [{modelName}]
+              </span>
+            )}
             <span style={{ fontSize: 14, color: 'var(--color-text-secondary)' }}>
               学習中... Episode {currentEpisode}
             </span>
@@ -53,6 +60,11 @@ export function ControlPanel({
 
         {phase === 'test' && (
           <>
+            {modelName && (
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-info)' }}>
+                [{modelName}]
+              </span>
+            )}
             <span style={{ fontSize: 14, color: 'var(--color-text-secondary)' }}>
               テスト走行中...
             </span>
@@ -83,7 +95,7 @@ export function ControlPanel({
               もっと鍛える
             </button>
             <button className="btn btn-ghost" onClick={onReset}>
-              リセットして最初から
+              新しいモデルを作る
             </button>
           </>
         )}

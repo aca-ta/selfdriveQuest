@@ -7,6 +7,7 @@ import type {
   WsServerMessage,
   TestResultData,
   ScoreData,
+  SaveSlotInfo,
 } from '../types';
 import { validateMaze } from '../engine/solver';
 
@@ -31,6 +32,10 @@ export function useTraining() {
   const [error, setError] = useState<string | null>(null);
   const [log, setLog] = useState<string[]>([]);
   const [testLogs, setTestLogs] = useState<Map<number, string[]>>(new Map());
+  const [savedSlots, setSavedSlots] = useState<SaveSlotInfo[]>([]);
+  const [modelName, setModelName] = useState<string | null>('モデル 1');
+  const [activeSlot, setActiveSlot] = useState<number | null>(0);
+  const [modelReady, setModelReady] = useState(false);
 
   const mazeConfigsRef = useRef<MazeConfig[]>([]);
 
@@ -54,6 +59,9 @@ export function useTraining() {
   // 現在のフェーズを ref で保持（コールバック内で参照するため）
   const phaseRef = useRef<GamePhase>(phase);
   phaseRef.current = phase;
+
+  const activeSlotRef = useRef<number | null>(activeSlot);
+  activeSlotRef.current = activeSlot;
 
   // キューからメッセージを1つずつ処理
   const processTestQueue = useCallback(() => {
@@ -151,6 +159,7 @@ export function useTraining() {
       case 'training_done':
         setFinalPaths(msg.final_paths);
         setAgentPosition(null);
+        setModelReady(true);
         setPhase('trained');
         setLog(prev => [...prev,
           `--- 学習完了 (${msg.total_episodes}エピソード${msg.converged ? ', 収束' : ''}) ---`,
@@ -165,6 +174,41 @@ export function useTraining() {
         if (testTimerRef.current === null) {
           processTestQueue();
         }
+        break;
+      case 'model_saved': {
+        setSavedSlots(prev => {
+          const filtered = prev.filter(s => s.slot !== msg.slotInfo.slot);
+          return [...filtered, msg.slotInfo].sort((a, b) => a.slot - b.slot);
+        });
+        setActiveSlot(msg.slotInfo.slot);
+        break;
+      }
+      case 'model_loaded': {
+        const logData = msg.log;
+        if (logData?.episodes) {
+          setEpisodes(logData.episodes);
+        }
+        if (logData?.score) {
+          setScore(logData.score);
+        }
+        const loadedName = logData?.name ?? null;
+        setModelName(loadedName);
+        setActiveSlot(msg.slot);
+        setModelReady(true);
+        const nameLabel = loadedName ? ` "${loadedName}"` : '';
+        setLog([`--- スロット${msg.slot + 1}${nameLabel}からモデルを読み込みました ---`]);
+        break;
+      }
+      case 'model_deleted': {
+        setSavedSlots(prev => prev.filter(s => s.slot !== msg.slot));
+        if (activeSlotRef.current === msg.slot) {
+          setActiveSlot(null);
+          setModelName(null);
+        }
+        break;
+      }
+      case 'model_list':
+        setSavedSlots(msg.slots.sort((a, b) => a.slot - b.slot));
         break;
       case 'error':
         setError(msg.message);
@@ -233,7 +277,7 @@ export function useTraining() {
     currentTestMazeRef.current = null;
   }, []);
 
-  const startTest = useCallback(() => {
+  const startTest = useCallback((numRows: number, numCols: number) => {
     clearTestQueue();
     testLogsRef.current.clear();
     setPhase('test');
@@ -242,11 +286,10 @@ export function useTraining() {
     setCurrentTestMaze(null);
     setScore(null);
 
-    const firstMaze = mazeConfigsRef.current[0];
     getWorker().postMessage({
       type: 'start_test',
-      numRows: firstMaze?.num_rows ?? 7,
-      numCols: firstMaze?.num_cols ?? 7,
+      numRows,
+      numCols,
       numTests: 10,
     });
   }, [getWorker, clearTestQueue]);
@@ -316,6 +359,35 @@ export function useTraining() {
     setLog([]);
   }, [clearTestQueue]);
 
+  // モデル保存
+  const saveModel = useCallback((slot: number, log?: {
+    name?: string;
+    mazes?: MazeConfig[];
+    hyperParams?: HyperParams;
+    episodes?: EpisodeResult[];
+    score?: ScoreData | null;
+    testSummary?: { success: number; total: number };
+  }) => {
+    if (log?.name) setModelName(log.name);
+    getWorker().postMessage({ type: 'save_model', slot, log });
+  }, [getWorker]);
+
+  // モデル読み込み
+  const loadModel = useCallback((slot: number) => {
+    setError(null);
+    getWorker().postMessage({ type: 'load_model', slot });
+  }, [getWorker]);
+
+  // モデル削除
+  const deleteModel = useCallback((slot: number) => {
+    getWorker().postMessage({ type: 'delete_model', slot });
+  }, [getWorker]);
+
+  // スロット一覧を取得
+  const refreshSlots = useCallback(() => {
+    getWorker().postMessage({ type: 'list_models' });
+  }, [getWorker]);
+
   // 完全リセット（モデルも破棄）
   const reset = useCallback(() => {
     clearTestQueue();
@@ -329,6 +401,9 @@ export function useTraining() {
     setScore(null);
     setError(null);
     setLog([]);
+    setModelName(null);
+    setActiveSlot(null);
+    setModelReady(false);
   }, [clearTestQueue]);
 
   return {
@@ -344,6 +419,13 @@ export function useTraining() {
     error,
     log,
     testLogs,
+    savedSlots,
+    modelName,
+    setModelName,
+    activeSlot,
+    setActiveSlot,
+    modelReady,
+    setModelReady,
     startTraining,
     startTest,
     startPlayground,
@@ -352,5 +434,9 @@ export function useTraining() {
     stopTest,
     backToEdit,
     reset,
+    saveModel,
+    loadModel,
+    deleteModel,
+    refreshSlots,
   };
 }

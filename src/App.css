@@ -156,6 +156,11 @@ html, body {
   border-bottom-color: #0080cc;
 }
 
+.btn-secondary {
+  background-color: #7c5cbf;
+  border-bottom-color: #5a3d9e;
+}
+
 .btn-ghost {
   background-color: var(--color-border);
   border-bottom-color: #2a2a2a;
@@ -233,7 +238,7 @@ html, body {
 }
 
 .modal-content-sm {
-  max-width: 400px;
+  max-width: 520px;
   width: auto;
 }
 
@@ -267,6 +272,43 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
   border: 2px solid var(--color-card);
   box-shadow: 0 0 4px rgba(0, 176, 111, 0.4);
+}
+
+/* ─── Model Slots ─── */
+.model-slots {
+  text-align: left;
+}
+
+.model-slot {
+  flex: 1;
+  background: var(--color-neutral-light);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  text-align: center;
+  min-width: 90px;
+}
+
+.model-slot-filled,
+.model-slot-selectable {
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.model-slot-filled:hover {
+  border-color: var(--color-info);
+  background-color: rgba(0, 162, 255, 0.08);
+}
+
+.model-slot-selectable:hover {
+  border-color: var(--color-primary);
+  background-color: rgba(0, 176, 111, 0.06);
+}
+
+.model-slot-active {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 8px rgba(0, 176, 111, 0.3);
+  background-color: var(--color-primary-light);
 }
 
 /* ─── Animations ─── */
