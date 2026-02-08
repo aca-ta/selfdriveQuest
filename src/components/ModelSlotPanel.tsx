@@ -298,7 +298,7 @@ export function ModelSlotPanel({ slots, canSave, activeSlot, modelName, onModelN
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {[0, 1, 2].map(slot => {
           const info = slotMap.get(slot);
           const handleClick = info
