@@ -22,10 +22,8 @@ export function EpisodeChart({ episodes, sessionBoundaries = [] }: EpisodeChartP
     return () => window.removeEventListener('resize', updateWidth);
   }, [updateWidth]);
 
-  if (episodes.length === 0) return null;
-
-  const maxSteps = Math.max(...episodes.map(e => e.steps), 1);
-  const barWidth = Math.max(2, Math.min(8, containerWidth / episodes.length));
+  const maxSteps = episodes.length > 0 ? Math.max(...episodes.map(e => e.steps), 1) : 1;
+  const barWidth = episodes.length > 0 ? Math.max(2, Math.min(8, containerWidth / episodes.length)) : 4;
   const chartHeight = 120;
 
   // Show last 100 episodes max
@@ -39,6 +37,8 @@ export function EpisodeChart({ episodes, sessionBoundaries = [] }: EpisodeChartP
       .map(b => b - visibleStart),
     [sessionBoundaries, visibleStart, episodes.length],
   );
+
+  if (episodes.length === 0) return null;
 
   return (
     <div ref={containerRef} className="card" style={{ padding: '12px 16px', overflow: 'hidden' }}>
