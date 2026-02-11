@@ -82,8 +82,16 @@ function TechSection() {
               ))}
             </tbody>
           </table>
-          <div style={{ marginTop: 8, fontSize: 10, color: 'var(--color-neutral)' }}>
-            src/engine/ — フレームワーク非依存のMLエンジン (Worker) / src/components/ — React UI
+          <div style={{ marginTop: 8, fontSize: 10, color: 'var(--color-neutral)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>src/engine/ — フレームワーク非依存のMLエンジン (Worker) / src/components/ — React UI</span>
+            <a
+              href="https://github.com/aca-ta/selfdriveQuest"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--color-text-secondary)', textDecoration: 'none', fontWeight: 600, whiteSpace: 'nowrap', marginLeft: 12 }}
+            >
+              GitHub ↗
+            </a>
           </div>
         </div>
       )}
